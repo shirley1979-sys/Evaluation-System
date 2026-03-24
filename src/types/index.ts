@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────
 // 역할
 // ──────────────────────────────────────────────
-export type Role = 'MEMBER' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN'
+export type Role = 'MEMBER' | 'MANAGER' | 'EXECUTIVE' | 'HR_ADMIN' | 'SUPER_ADMIN'
 
 // ──────────────────────────────────────────────
 // 평가 유형
@@ -27,11 +27,16 @@ export interface User {
   id: string
   name: string
   nameEng: string | null
+  nickname: string | null
   email: string
   role: Role
   teamId: string | null
   team?: Team
-  jobTitle: string | null
+  jobTitle: string | null   // 직책 (position, e.g. 팀장)
+  jobDuty: string | null    // 직무 (function, e.g. 프론트엔드 개발자)
+  hireDate: string | null   // 입사일 (YYYY-MM-DD)
+  leaveDate: string | null  // 퇴사일 (YYYY-MM-DD)
+  ssnPrefix: string | null  // 주민번호 앞 6자리
   managerEmail: string | null
   isActive: boolean
 }

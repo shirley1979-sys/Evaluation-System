@@ -3,20 +3,25 @@
 import { useState, useRef } from 'react'
 import Topbar from '@/components/layout/Topbar'
 import { useEmployeeStore, type UploadRow } from '@/store/employees'
+import { MOCK_USERS } from '@/lib/mock'
+import type { Role } from '@/types'
 import * as XLSX from 'xlsx'
 
 const ROLE_LABEL: Record<string, string> = {
-  MEMBER: '직원', MANAGER: '팀장', HR_ADMIN: 'HR', SUPER_ADMIN: '슈퍼관리자',
+  MEMBER: '팀원', MANAGER: '팀장', EXECUTIVE: '임원', HR_ADMIN: 'HR', SUPER_ADMIN: '슈퍼관리자',
 }
 const ROLE_COLOR: Record<string, string> = {
   MEMBER:      'bg-gray-100 text-gray-600',
   MANAGER:     'bg-mint-50 text-mint-700 border border-mint-200',
+  EXECUTIVE:   'bg-blue-50 text-blue-700 border border-blue-200',
   HR_ADMIN:    'bg-purple-50 text-purple-600 border border-purple-200',
   SUPER_ADMIN: 'bg-amber-50 text-amber-600 border border-amber-200',
 }
 
+const ALL_ROLES: Role[] = ['MEMBER', 'MANAGER', 'EXECUTIVE', 'HR_ADMIN', 'SUPER_ADMIN']
+
 export default function HREmployeesPage() {
-  const { employees, hasUploaded, setFromUpload, resetToMock, removeEmployee } = useEmployeeStore()
+  const { employees, hasUploaded, setFromUpload, resetToMock, removeEmployee, updateRole } = useEmployeeStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<UploadRow[] | null>(null)
   const [fileName, setFileName] = useState('')
@@ -24,15 +29,19 @@ export default function HREmployeesPage() {
   const [dragOver, setDragOver] = useState(false)
 
   function downloadTemplate() {
-    const headers = ['이름', '영문명', '이메일', '주민번호앞6자리', '팀명', '직책', '역할(직원/팀장/HR/슈퍼관리자)', '팀장이메일']
-    const samples = [
-      ['홍길동', 'Gildong Hong', 'gildong@everex.co.kr', '900101', 'Maker 1', '시니어 개발자', '직원', 'manager@everex.co.kr'],
-      ['김팀장', 'Manager Kim', 'manager@everex.co.kr', '880505', 'Maker 1', '팀장', '팀장', ''],
-      ['이HR', 'HR Lee', 'hr@everex.co.kr', '820910', '', 'HR 팀장', 'HR', ''],
-    ]
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...samples])
-    // 컬럼 너비 설정
-    ws['!cols'] = [12, 16, 24, 14, 14, 16, 22, 24].map((wch) => ({ wch }))
+    const headers = ['이름', '영문명', '이메일', '주민번호앞6자리', '팀명', '직책', '역할(팀원/팀장/임원/HR/슈퍼관리자)', '팀장이메일']
+    const mockRows = MOCK_USERS.map((u) => [
+      u.name,
+      u.nameEng ?? '',
+      u.email,
+      '900101',
+      u.team?.name ?? '',
+      u.jobTitle ?? '',
+      ROLE_LABEL[u.role] ?? u.role,
+      u.managerEmail ?? '',
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...mockRows])
+    ws['!cols'] = [12, 16, 24, 14, 20, 16, 22, 24].map((wch) => ({ wch }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '직원목록')
     XLSX.writeFile(wb, 'EverEx_직원명단_템플릿.xlsx')
@@ -254,9 +263,15 @@ export default function HREmployeesPage() {
                     <td className="px-4 py-3 text-[#4A5568]">{emp.team?.name ?? '-'}</td>
                     <td className="px-4 py-3 text-[#4A5568]">{emp.jobTitle ?? '-'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLOR[emp.role]}`}>
-                        {ROLE_LABEL[emp.role] ?? emp.role}
-                      </span>
+                      <select
+                        value={emp.role}
+                        onChange={(e) => updateRole(emp.id, e.target.value as Role)}
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-mint-100 ${ROLE_COLOR[emp.role]}`}
+                      >
+                        {ALL_ROLES.map((r) => (
+                          <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3">
                       <button

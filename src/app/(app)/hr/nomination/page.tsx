@@ -1,93 +1,353 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth'
 import Topbar from '@/components/layout/Topbar'
-import { MOCK_NOMINATIONS, MOCK_USERS } from '@/lib/mock'
-import type { Nomination } from '@/types'
+import { useNominationStore, type NomEntry } from '@/store/nominations'
+import { useEmployeeStore } from '@/store/employees'
+import { useEvalCycleStore, PHASE_LABEL } from '@/store/cycle'
+import type { NominationGroup, User } from '@/types'
+
+const GROUP_LABEL: Record<NominationGroup, string> = { TEAMMATE: '팀원', COLLAB: '협업' }
+const GROUP_COLOR: Record<NominationGroup, string> = {
+  TEAMMATE: 'bg-blue-50 border-blue-200 text-blue-700',
+  COLLAB:   'bg-purple-50 border-purple-200 text-purple-700',
+}
 
 export default function HRNominationPage() {
   const user = useAuthStore((s) => s.user)
-  const [nominations, setNominations] = useState<Nomination[]>(MOCK_NOMINATIONS)
+  const { entries, hrConfirmEntry, hrConfirmAll, hrModifyEntry } = useNominationStore()
+  const allEmployees = useEmployeeStore((s) => s.employees)
+  const { phase, year } = useEvalCycleStore()
+
+  const [editTarget, setEditTarget] = useState<NomEntry | null>(null)
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'SUBMITTED' | 'HR_CONFIRMED'>('ALL')
 
   if (!user) return null
 
-  // 추천자별 그룹핑
-  const nominatorIds = [...new Set(nominations.map((n) => n.nominatorId))]
-  const grouped = nominatorIds.map((nId) => ({
-    nominator: MOCK_USERS.find((u) => u.id === nId)!,
-    nominees: nominations.filter((n) => n.nominatorId === nId),
-  }))
+  const visibleEntries = filterStatus === 'ALL'
+    ? entries
+    : entries.filter((e) => e.status === filterStatus)
 
-  function confirmAll() {
-    setNominations((prev) => prev.map((n) => ({ ...n, status: 'CONFIRMED' as const })))
+  const submittedCount  = entries.filter((e) => e.status === 'SUBMITTED').length
+  const confirmedCount  = entries.filter((e) => e.status === 'HR_CONFIRMED').length
+  const total           = entries.length
+
+  function getEmployee(id: string) {
+    return allEmployees.find((e) => e.id === id)
   }
 
-  function confirmOne(nominatorId: string) {
-    setNominations((prev) =>
-      prev.map((n) => n.nominatorId === nominatorId ? { ...n, status: 'CONFIRMED' as const } : n)
-    )
+  function handleBulkConfirm() {
+    if (submittedCount === 0) return
+    if (window.confirm(`미확정 ${submittedCount}건을 모두 확정하시겠습니까?`)) {
+      hrConfirmAll()
+    }
   }
-
-  const confirmedCount = grouped.filter((g) => g.nominees.every((n) => n.status === 'CONFIRMED')).length
 
   return (
     <>
-      <Topbar title="동료 확정" subtitle={`${confirmedCount}/${grouped.length}명 확정`} />
-      <div className="flex-1 overflow-y-auto p-7 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-[#8896A8]">
-            확정 완료 <strong className="text-[#0D1B2A]">{confirmedCount}</strong>/{grouped.length}명
-          </p>
+      <Topbar
+        title="동료 확정"
+        subtitle={`${year}년 다면평가 · ${PHASE_LABEL[phase]} · ${confirmedCount}/${total}명 확정`}
+      />
+      <div className="flex-1 overflow-y-auto p-7 space-y-5 max-w-4xl">
+
+        {/* 요약 카드 */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: '전체 제출', value: total,          color: 'text-[#0D1B2A]' },
+            { label: '검토 대기', value: submittedCount, color: 'text-amber-600'  },
+            { label: '확정 완료', value: confirmedCount, color: 'text-green-600'  },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-white rounded-2xl shadow-card p-5 text-center">
+              <p className="text-xs text-[#8896A8] mb-1">{label}</p>
+              <p className={`text-3xl font-extrabold ${color}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 필터 + 일괄 확정 */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-2">
+            {(['ALL', 'SUBMITTED', 'HR_CONFIRMED'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filterStatus === s
+                    ? 'bg-mint-500 text-white'
+                    : 'bg-white border border-[#DDE3EE] text-[#4A5568] hover:bg-gray-50'
+                }`}
+              >
+                {s === 'ALL' ? '전체' : s === 'SUBMITTED' ? '검토 대기' : '확정 완료'}
+                <span className="ml-1 opacity-70">
+                  ({s === 'ALL' ? total : s === 'SUBMITTED' ? submittedCount : confirmedCount})
+                </span>
+              </button>
+            ))}
+          </div>
           <button
-            onClick={() => { if (window.confirm('전체 추천을 일괄 확정하시겠습니까?')) confirmAll() }}
-            className="text-sm font-semibold text-white bg-blue-600 px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors"
+            onClick={handleBulkConfirm}
+            disabled={submittedCount === 0}
+            className="text-sm font-semibold text-white bg-mint-500 px-4 py-2 rounded-xl hover:bg-mint-600 disabled:opacity-40 transition-colors"
           >
-            전체 일괄 확정
+            전체 일괄 확정 ({submittedCount})
           </button>
         </div>
 
-        {grouped.map(({ nominator, nominees }) => {
-          const isConfirmed = nominees.every((n) => n.status === 'CONFIRMED')
-          return (
-            <div key={nominator.id} className="bg-white rounded-2xl shadow-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                    {nominator.name.slice(0, 2)}
+        {/* 목록 */}
+        {visibleEntries.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-card p-10 text-center">
+            <p className="text-sm text-[#8896A8]">해당 항목이 없습니다</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visibleEntries.map((entry) => {
+              const nominator = getEmployee(entry.nominatorId)
+              const isConfirmed = entry.status === 'HR_CONFIRMED'
+              return (
+                <div key={entry.nominatorId} className="bg-white rounded-2xl shadow-card p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mint-500 to-mint-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {nominator?.name.slice(0, 2) ?? '??'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-[#0D1B2A] text-sm">{nominator?.name}</p>
+                          {entry.hrModified && (
+                            <span className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">HR 수정됨</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#8896A8]">{nominator?.team?.name} · {nominator?.jobTitle}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isConfirmed && (
+                        <button
+                          onClick={() => setEditTarget(entry)}
+                          className="text-xs font-medium text-[#4A5568] border border-[#DDE3EE] px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          명단 수정
+                        </button>
+                      )}
+                      {isConfirmed ? (
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                          확정 완료
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => hrConfirmEntry(entry.nominatorId)}
+                          className="text-xs font-semibold text-white bg-mint-500 px-3 py-1.5 rounded-lg hover:bg-mint-600 transition-colors"
+                        >
+                          확정
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-[#0D1B2A] text-sm">{nominator.name}</p>
-                    <p className="text-xs text-[#8896A8]">{nominator.team?.name}</p>
+
+                  {/* 피추천인 목록 */}
+                  <div className="flex flex-wrap gap-2">
+                    {entry.nominees.map(({ userId, group }) => {
+                      const nominee = getEmployee(userId)
+                      return (
+                        <span
+                          key={userId}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                            isConfirmed
+                              ? 'bg-green-50 border-green-200 text-green-700'
+                              : GROUP_COLOR[group]
+                          }`}
+                        >
+                          {nominee?.name ?? userId}
+                          <span className="opacity-60">{GROUP_LABEL[group]}</span>
+                        </span>
+                      )
+                    })}
+                    {entry.nominees.length === 0 && (
+                      <span className="text-xs text-[#8896A8]">추천 없음</span>
+                    )}
                   </div>
+
+                  {/* 확정일 */}
+                  {isConfirmed && entry.confirmedAt && (
+                    <p className="text-[11px] text-[#8896A8] mt-2">
+                      확정일: {new Date(entry.confirmedAt).toLocaleString('ko-KR')}
+                    </p>
+                  )}
                 </div>
-                {isConfirmed ? (
-                  <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">확정 완료</span>
-                ) : (
-                  <button onClick={() => confirmOne(nominator.id)}
-                    className="text-xs font-semibold text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-                    확정
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {nominees.map((nom) => {
-                  const nominee = MOCK_USERS.find((u) => u.id === nom.nomineeId)
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {editTarget && (
+        <EditModal
+          entry={editTarget}
+          allEmployees={allEmployees}
+          onClose={() => setEditTarget(null)}
+          onSave={(nominees) => {
+            hrModifyEntry(editTarget.nominatorId, nominees)
+            setEditTarget(null)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+// ── 명단 수정 모달 ────────────────────────────────
+function EditModal({
+  entry,
+  allEmployees,
+  onClose,
+  onSave,
+}: {
+  entry: NomEntry
+  allEmployees: User[]
+  onClose: () => void
+  onSave: (nominees: { userId: string; group: NominationGroup }[]) => void
+}) {
+  const [nominees, setNominees] = useState(entry.nominees)
+  const [search, setSearch] = useState('')
+  const [addGroup, setAddGroup] = useState<NominationGroup>('TEAMMATE')
+
+  const MAX = 7
+  const nominatorTeamId = allEmployees.find((e) => e.id === entry.nominatorId)?.teamId
+
+  const candidatePool = useMemo(() =>
+    allEmployees.filter((e) =>
+      e.id !== entry.nominatorId &&
+      e.isActive &&
+      !nominees.some((n) => n.userId === e.id) &&
+      (e.name.includes(search) || (e.team?.name ?? '').includes(search) || (e.jobTitle ?? '').includes(search))
+    ),
+  [allEmployees, nominees, search, entry.nominatorId])
+
+  function addNominee(emp: User) {
+    if (nominees.length >= MAX) return
+    const group: NominationGroup = emp.teamId === nominatorTeamId ? 'TEAMMATE' : 'COLLAB'
+    setNominees((prev) => [...prev, { userId: emp.id, group }])
+  }
+
+  function removeNominee(userId: string) {
+    setNominees((prev) => prev.filter((n) => n.userId !== userId))
+  }
+
+  function changeGroup(userId: string, group: NominationGroup) {
+    setNominees((prev) => prev.map((n) => n.userId === userId ? { ...n, group } : n))
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="px-6 py-4 border-b border-[#DDE3EE] flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-[#0D1B2A]">동료 명단 수정</h3>
+            <p className="text-xs text-[#8896A8] mt-0.5">
+              현재 {nominees.length}/{MAX}명 선택됨
+            </p>
+          </div>
+          <button onClick={onClose} className="text-[#8896A8] hover:text-[#0D1B2A] transition-colors">
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* 좌: 현재 선택 명단 */}
+          <div className="w-1/2 p-4 border-r border-[#DDE3EE] overflow-y-auto">
+            <p className="text-xs font-semibold text-[#4A5568] mb-3 uppercase tracking-wide">선택된 동료</p>
+            {nominees.length === 0 ? (
+              <p className="text-xs text-[#8896A8] py-4 text-center">선택된 동료가 없습니다</p>
+            ) : (
+              <div className="space-y-2">
+                {nominees.map(({ userId, group }) => {
+                  const emp = allEmployees.find((e) => e.id === userId)
                   return (
-                    <span key={nom.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                      nom.status === 'CONFIRMED' ? 'bg-green-50 border-green-200 text-green-700' :
-                      nom.groupType === 'TEAMMATE' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-purple-50 border-purple-200 text-purple-700'
-                    }`}>
-                      {nominee?.name}
-                      <span className="opacity-50">{nom.groupType === 'TEAMMATE' ? '팀원' : '협업'}</span>
-                    </span>
+                    <div key={userId} className="flex items-center gap-2 p-2 rounded-xl bg-[#F8FAFD]">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mint-500 to-mint-700 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                        {emp?.name.slice(0, 2) ?? '??'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#0D1B2A] truncate">{emp?.name}</p>
+                        <p className="text-[10px] text-[#8896A8] truncate">{emp?.team?.name}</p>
+                      </div>
+                      <select
+                        value={group}
+                        onChange={(e) => changeGroup(userId, e.target.value as NominationGroup)}
+                        className="text-[10px] border border-[#DDE3EE] rounded px-1 py-0.5 bg-white focus:outline-none"
+                      >
+                        <option value="TEAMMATE">팀원</option>
+                        <option value="COLLAB">협업</option>
+                      </select>
+                      <button
+                        onClick={() => removeNominee(userId)}
+                        className="text-[#8896A8] hover:text-red-500 transition-colors flex-shrink-0"
+                      >
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
                   )
                 })}
               </div>
+            )}
+          </div>
+
+          {/* 우: 직원 검색/추가 */}
+          <div className="w-1/2 p-4 flex flex-col overflow-hidden">
+            <p className="text-xs font-semibold text-[#4A5568] mb-2 uppercase tracking-wide">직원 추가</p>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="이름, 팀, 직무 검색..."
+              className="w-full h-8 px-3 border border-[#DDE3EE] rounded-lg text-xs focus:outline-none focus:border-mint-400 mb-3"
+            />
+            <div className="flex-1 overflow-y-auto space-y-1.5">
+              {nominees.length >= MAX ? (
+                <p className="text-xs text-amber-600 py-2 text-center">최대 {MAX}명까지 선택 가능합니다</p>
+              ) : candidatePool.length === 0 ? (
+                <p className="text-xs text-[#8896A8] py-4 text-center">검색 결과 없음</p>
+              ) : (
+                candidatePool.map((emp) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => addNominee(emp)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl hover:bg-mint-50 hover:border-mint-200 border border-transparent transition-all text-left"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                      {emp.name.slice(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#0D1B2A] truncate">{emp.name}</p>
+                      <p className="text-[10px] text-[#8896A8] truncate">{emp.team?.name} · {emp.jobTitle}</p>
+                    </div>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="text-mint-500 flex-shrink-0">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                  </button>
+                ))
+              )}
             </div>
-          )
-        })}
+          </div>
+        </div>
+
+        {/* 푸터 */}
+        <div className="px-6 py-4 border-t border-[#DDE3EE] flex gap-3">
+          <button onClick={onClose} className="flex-1 h-10 border border-[#DDE3EE] text-sm font-medium text-[#4A5568] rounded-xl hover:bg-gray-50">취소</button>
+          <button
+            onClick={() => onSave(nominees)}
+            className="flex-1 h-10 bg-mint-500 text-white font-semibold text-sm rounded-xl hover:bg-mint-600"
+          >
+            저장
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   )
 }

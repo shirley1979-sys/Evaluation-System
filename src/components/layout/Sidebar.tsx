@@ -143,7 +143,7 @@ export default function Sidebar() {
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] hover:bg-white/7 transition-colors group"
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mint-500 to-mint-700 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
               {initials}
             </div>
             <div className="text-left min-w-0 flex-1">

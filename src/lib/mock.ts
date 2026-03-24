@@ -17,27 +17,27 @@ export const MOCK_TEAMS: Team[] = [
 // 직원
 // ──────────────────────────────────────────────
 export const MOCK_USERS: User[] = [
-  // Maker 1
-  { id: 'u1',  name: '이서연', nameEng: 'Seoyeon', email: 'seoyeon@everex.co.kr',  role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '프론트엔드 개발자', managerEmail: 'minjun@everex.co.kr', isActive: true },
-  { id: 'u2',  name: '김민준', nameEng: 'Minjun',  email: 'minjun@everex.co.kr',   role: 'MANAGER',    teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '팀장',               managerEmail: null, isActive: true },
-  { id: 'u3',  name: '박지호', nameEng: 'Jiho',    email: 'jiho@everex.co.kr',     role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '백엔드 개발자',      managerEmail: 'minjun@everex.co.kr', isActive: true },
-  { id: 'u4',  name: '최수아', nameEng: 'Sua',     email: 'sua@everex.co.kr',      role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: 'QA 엔지니어',       managerEmail: 'minjun@everex.co.kr', isActive: true },
-  { id: 'u5',  name: '정하은', nameEng: 'Haeun',   email: 'haeun@everex.co.kr',    role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '백엔드 개발자',      managerEmail: 'minjun@everex.co.kr', isActive: true },
+  // Maker 1 Motion Insight
+  { id: 'u1',  name: '이서연', nameEng: 'Seoyeon', nickname: '서연',    email: 'seoyeon@everex.co.kr',  role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '주임',  jobDuty: '프론트엔드 개발자',    hireDate: '2021-03-02', leaveDate: null, ssnPrefix: '950312', managerEmail: 'minjun@everex.co.kr',  isActive: true },
+  { id: 'u2',  name: '김민준', nameEng: 'Minjun',  nickname: '민준',    email: 'minjun@everex.co.kr',   role: 'MANAGER',    teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '팀장',  jobDuty: '팀장',                hireDate: '2018-01-15', leaveDate: null, ssnPrefix: '880621', managerEmail: null,                   isActive: true },
+  { id: 'u3',  name: '박지호', nameEng: 'Jiho',    nickname: '지호',    email: 'jiho@everex.co.kr',     role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '선임',  jobDuty: '백엔드 개발자',        hireDate: '2019-07-01', leaveDate: null, ssnPrefix: '910401', managerEmail: 'minjun@everex.co.kr',  isActive: true },
+  { id: 'u4',  name: '최수아', nameEng: 'Sua',     nickname: '수아',    email: 'sua@everex.co.kr',      role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '주임',  jobDuty: 'QA 엔지니어',         hireDate: '2022-04-04', leaveDate: null, ssnPrefix: '960825', managerEmail: 'minjun@everex.co.kr',  isActive: true },
+  { id: 'u5',  name: '정하은', nameEng: 'Haeun',   nickname: '하은',    email: 'haeun@everex.co.kr',    role: 'MEMBER',     teamId: 't1', team: MOCK_TEAMS[0], jobTitle: '사원',  jobDuty: '백엔드 개발자',        hireDate: '2023-02-20', leaveDate: null, ssnPrefix: '980711', managerEmail: 'minjun@everex.co.kr',  isActive: true },
   // Global Platform
-  { id: 'u6',  name: '오준혁', nameEng: 'Junhyuk', email: 'junhyuk@everex.co.kr',  role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '풀스택 개발자',      managerEmail: 'yuri@everex.co.kr', isActive: true },
-  { id: 'u7',  name: '한유리', nameEng: 'Yuri',    email: 'yuri@everex.co.kr',     role: 'MANAGER',    teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '팀장',               managerEmail: null, isActive: true },
-  { id: 'u8',  name: '윤태양', nameEng: 'Taeyang', email: 'taeyang@everex.co.kr',  role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '데브옵스 엔지니어',  managerEmail: 'yuri@everex.co.kr', isActive: true },
-  { id: 'u9',  name: '임나라', nameEng: 'Nara',    email: 'nara@everex.co.kr',     role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '프론트엔드 개발자',  managerEmail: 'yuri@everex.co.kr', isActive: true },
+  { id: 'u6',  name: '오준혁', nameEng: 'Junhyuk', nickname: '준혁',    email: 'junhyuk@everex.co.kr',  role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '선임',  jobDuty: '풀스택 개발자',        hireDate: '2020-06-01', leaveDate: null, ssnPrefix: '930215', managerEmail: 'yuri@everex.co.kr',    isActive: true },
+  { id: 'u7',  name: '한유리', nameEng: 'Yuri',    nickname: '유리',    email: 'yuri@everex.co.kr',     role: 'MANAGER',    teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '팀장',  jobDuty: '팀장',                hireDate: '2016-09-05', leaveDate: null, ssnPrefix: '850302', managerEmail: null,                   isActive: true },
+  { id: 'u8',  name: '윤태양', nameEng: 'Taeyang', nickname: '태양',    email: 'taeyang@everex.co.kr',  role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '주임',  jobDuty: '데브옵스 엔지니어',    hireDate: '2021-11-15', leaveDate: null, ssnPrefix: '940603', managerEmail: 'yuri@everex.co.kr',    isActive: true },
+  { id: 'u9',  name: '임나라', nameEng: 'Nara',    nickname: '나라',    email: 'nara@everex.co.kr',     role: 'MEMBER',     teamId: 't2', team: MOCK_TEAMS[1], jobTitle: '사원',  jobDuty: '프론트엔드 개발자',    hireDate: '2023-08-21', leaveDate: null, ssnPrefix: '990118', managerEmail: 'yuri@everex.co.kr',    isActive: true },
   // Design Studio
-  { id: 'u10', name: '강다인', nameEng: 'Dain',    email: 'dain@everex.co.kr',     role: 'MEMBER',     teamId: 't3', team: MOCK_TEAMS[2], jobTitle: 'UX 디자이너',       managerEmail: 'soyeon@everex.co.kr', isActive: true },
-  { id: 'u11', name: '신소연', nameEng: 'Soyeon',  email: 'soyeon@everex.co.kr',   role: 'MANAGER',    teamId: 't3', team: MOCK_TEAMS[2], jobTitle: '팀장',               managerEmail: null, isActive: true },
-  { id: 'u12', name: '백승우', nameEng: 'Seungwoo',email: 'seungwoo@everex.co.kr', role: 'MEMBER',     teamId: 't3', team: MOCK_TEAMS[2], jobTitle: '프로덕트 디자이너', managerEmail: 'soyeon@everex.co.kr', isActive: true },
+  { id: 'u10', name: '강다인', nameEng: 'Dain',    nickname: '다인',    email: 'dain@everex.co.kr',     role: 'MEMBER',     teamId: 't3', team: MOCK_TEAMS[2], jobTitle: '주임',  jobDuty: 'UX 디자이너',         hireDate: '2022-01-10', leaveDate: null, ssnPrefix: '961230', managerEmail: 'soyeon@everex.co.kr',  isActive: true },
+  { id: 'u11', name: '신소연', nameEng: 'Soyeon',  nickname: '소연',    email: 'soyeon@everex.co.kr',   role: 'MANAGER',    teamId: 't3', team: MOCK_TEAMS[2], jobTitle: '팀장',  jobDuty: '팀장',                hireDate: '2017-04-03', leaveDate: null, ssnPrefix: '870914', managerEmail: null,                   isActive: true },
+  { id: 'u12', name: '백승우', nameEng: 'Seungwoo',nickname: '승우',    email: 'seungwoo@everex.co.kr', role: 'MEMBER',     teamId: 't3', team: MOCK_TEAMS[2], jobTitle: '선임',  jobDuty: '프로덕트 디자이너',    hireDate: '2019-10-07', leaveDate: null, ssnPrefix: '920508', managerEmail: 'soyeon@everex.co.kr',  isActive: true },
   // Data Intelligence
-  { id: 'u13', name: '류채원', nameEng: 'Chaewon', email: 'chaewon@everex.co.kr',  role: 'MEMBER',     teamId: 't4', team: MOCK_TEAMS[3], jobTitle: '데이터 사이언티스트', managerEmail: 'woosung@everex.co.kr', isActive: true },
-  { id: 'u14', name: '문우성', nameEng: 'Woosung', email: 'woosung@everex.co.kr',  role: 'MANAGER',    teamId: 't4', team: MOCK_TEAMS[3], jobTitle: '팀장',               managerEmail: null, isActive: true },
-  // HR
-  { id: 'u15', name: 'Shirley',nameEng: 'Shirley', email: 'shirley@everex.co.kr',  role: 'HR_ADMIN',   teamId: null, team: undefined, jobTitle: 'HR 팀장', managerEmail: null, isActive: true },
-  { id: 'u16', name: '관리자', nameEng: 'Admin',   email: 'admin@everex.co.kr',    role: 'SUPER_ADMIN',teamId: null, team: undefined, jobTitle: '슈퍼관리자', managerEmail: null, isActive: true },
+  { id: 'u13', name: '류채원', nameEng: 'Chaewon', nickname: '채원',    email: 'chaewon@everex.co.kr',  role: 'MEMBER',     teamId: 't4', team: MOCK_TEAMS[3], jobTitle: '주임',  jobDuty: '데이터 사이언티스트',  hireDate: '2021-05-17', leaveDate: null, ssnPrefix: '950920', managerEmail: 'woosung@everex.co.kr', isActive: true },
+  { id: 'u14', name: '문우성', nameEng: 'Woosung', nickname: '우성',    email: 'woosung@everex.co.kr',  role: 'MANAGER',    teamId: 't4', team: MOCK_TEAMS[3], jobTitle: '팀장',  jobDuty: '팀장',                hireDate: '2015-02-23', leaveDate: null, ssnPrefix: '830406', managerEmail: null,                   isActive: true },
+  // HR / Admin
+  { id: 'u15', name: 'Shirley',nameEng: 'Shirley', nickname: 'Shirley', email: 'shirley@everex.co.kr',  role: 'HR_ADMIN',   teamId: null, team: undefined,    jobTitle: 'HR팀장', jobDuty: 'HR 관리자',           hireDate: '2014-06-01', leaveDate: null, ssnPrefix: '820905', managerEmail: null,                   isActive: true },
+  { id: 'u16', name: '관리자', nameEng: 'Admin',   nickname: 'Admin',   email: 'admin@everex.co.kr',    role: 'SUPER_ADMIN',teamId: null, team: undefined,    jobTitle: '관리자', jobDuty: '슈퍼관리자',           hireDate: '2010-01-01', leaveDate: null, ssnPrefix: '800101', managerEmail: null,                   isActive: true },
 ]
 
 // ──────────────────────────────────────────────

@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import Topbar from '@/components/layout/Topbar'
@@ -8,6 +9,14 @@ import { MOCK_CYCLE, MOCK_SCORES, MOCK_SURVEYS, MOCK_QUESTIONS } from '@/lib/moc
 import { scoreToGrade, calcCategoryScores, canShowPeerComments, canShowUpwardComments } from '@/lib/score'
 
 export default function ReportPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-mint-500 border-t-transparent rounded-full animate-spin" /></div>}>
+      <ReportPageInner />
+    </Suspense>
+  )
+}
+
+function ReportPageInner() {
   const user = useAuthStore((s) => s.user)
   const searchParams = useSearchParams()
   const isPreview = searchParams.get('preview') === '1'
@@ -31,7 +40,7 @@ export default function ReportPage() {
             {/* 데모용: 리포트 미리보기 버튼 */}
             <a
               href="/report?preview=1"
-              className="mt-4 inline-block text-sm text-blue-600 underline"
+              className="mt-4 inline-block text-sm text-mint-600 underline"
             >
               리포트 미리보기 (데모)
             </a>
