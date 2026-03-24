@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import Topbar from '@/components/layout/Topbar'
 import RadarChart from '@/components/report/RadarChart'
@@ -8,11 +9,14 @@ import { scoreToGrade, calcCategoryScores, canShowPeerComments, canShowUpwardCom
 
 export default function ReportPage() {
   const user = useAuthStore((s) => s.user)
+  const searchParams = useSearchParams()
+  const isPreview = searchParams.get('preview') === '1'
+
   if (!user) return null
 
   const cycle = MOCK_CYCLE
 
-  if (cycle.phase !== 'RESULTS_OPEN') {
+  if (cycle.phase !== 'RESULTS_OPEN' && !isPreview) {
     return (
       <>
         <Topbar title="내 리포트" />
@@ -25,22 +29,22 @@ export default function ReportPage() {
               현재 단계: <strong className="text-[#4A5568]">{cycle.phase}</strong> · 마감: {cycle.evalCloseAt}
             </div>
             {/* 데모용: 리포트 미리보기 버튼 */}
-            <button
-              onClick={() => window.location.href = '/report?preview=1'}
-              className="mt-4 text-sm text-blue-600 underline"
+            <a
+              href="/report?preview=1"
+              className="mt-4 inline-block text-sm text-blue-600 underline"
             >
               리포트 미리보기 (데모)
-            </button>
+            </a>
           </div>
         </div>
       </>
     )
   }
 
-  return <ReportContent userId={user.id} />
+  return <ReportContent userId={user.id} isPreview={isPreview} />
 }
 
-function ReportContent({ userId }: { userId: string }) {
+function ReportContent({ userId, isPreview = false }: { userId: string; isPreview?: boolean }) {
   const score = MOCK_SCORES.find((s) => s.userId === userId)
   const receivedSurveys = MOCK_SURVEYS.filter(
     (s) => s.targetId === userId && s.status === 'SUBMITTED' && s.type !== 'SELF'
@@ -66,7 +70,7 @@ function ReportContent({ userId }: { userId: string }) {
 
   return (
     <>
-      <Topbar title="내 리포트" subtitle="2026년 다면평가 결과" />
+      <Topbar title="내 리포트" subtitle={isPreview ? '2026년 다면평가 결과 (미리보기)' : '2026년 다면평가 결과'} />
       <div className="flex-1 overflow-y-auto p-7">
         <div className="max-w-3xl space-y-5">
 
@@ -113,19 +117,19 @@ function ReportContent({ userId }: { userId: string }) {
 
 function ScoreCard({ label, value, grade, highlight = false }: { label: string; value: number | null; grade: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-2xl p-4 ${highlight ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white' : 'bg-white shadow-card'}`}>
-      <p className={`text-xs font-medium mb-2 ${highlight ? 'text-blue-100' : 'text-[#8896A8]'}`}>{label}</p>
+    <div className={`rounded-2xl p-4 ${highlight ? 'bg-gradient-to-br from-mint-500 to-mint-600 text-white' : 'bg-white shadow-card'}`}>
+      <p className={`text-xs font-medium mb-2 ${highlight ? 'text-mint-100' : 'text-[#8896A8]'}`}>{label}</p>
       <p className={`text-3xl font-extrabold ${highlight ? 'text-white' : 'text-[#0D1B2A]'}`}>
         {value?.toFixed(1) ?? '-'}
       </p>
-      <p className={`text-xs mt-1 ${highlight ? 'text-blue-200' : 'text-[#8896A8]'}`}>등급 {grade}</p>
+      <p className={`text-xs mt-1 ${highlight ? 'text-mint-200' : 'text-[#8896A8]'}`}>등급 {grade}</p>
     </div>
   )
 }
 
 function StrengthCard({ title, items, type }: { title: string; items: { category: string; avg: number }[]; type: 'strength' | 'improve' }) {
   const colors = type === 'strength'
-    ? { bg: 'bg-blue-50', border: 'border-blue-100', dot: 'bg-blue-500', title: 'text-blue-700' }
+    ? { bg: 'bg-mint-50', border: 'border-mint-100', dot: 'bg-mint-500', title: 'text-mint-700' }
     : { bg: 'bg-amber-50', border: 'border-amber-100', dot: 'bg-amber-500', title: 'text-amber-700' }
   return (
     <div className={`rounded-2xl p-4 border ${colors.bg} ${colors.border}`}>

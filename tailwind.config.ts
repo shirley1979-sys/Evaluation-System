@@ -9,15 +9,30 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // EverEx 브랜드 민트 (주요 인터랙션 컬러)
+        mint: {
+          50:  '#edfafa',
+          100: '#d4f7f6',
+          200: '#aaeeed',
+          300: '#7dd8d6',
+          400: '#4cc4c2',
+          500: '#07beb8',  // 메인 민트
+          600: '#04afab',
+          700: '#039f9b',
+          800: '#027d7a',
+          900: '#015c59',
+        },
+        // EverEx 네이비
         navy: {
-          DEFAULT: '#0D1B2A',
+          DEFAULT: '#192628',
+          sidebar: '#0D1B2A',
           2: '#162438',
         },
         brand: {
-          blue: '#1D4ED8',
-          blue2: '#2563EB',
-          blue3: '#3B82F6',
-          gold: '#D4AF37',
+          mint:  '#07BEB8',
+          mint2: '#04AFAB',
+          navy:  '#4156A1',
+          gold:  '#D4AF37',
           goldf: '#F0CC5A',
         },
         surface: '#FFFFFF',

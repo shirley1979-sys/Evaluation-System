@@ -12,8 +12,9 @@ const MEMBER_MENU = [
     section: '내 평가',
     items: [
       { label: '대시보드',   href: '/dashboard',   icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-      { label: '셀프 평가',  href: '/survey/self',  icon: 'M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5' },
-      { label: '평가 작성',  href: '/survey/peer',  icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' },
+      { label: '셀프 평가',  href: '/survey/self',   icon: 'M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5' },
+      { label: '동료 평가',  href: '/survey/peer',   icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' },
+      { label: '상향 평가',  href: '/survey/upward', icon: 'M5 10l7-7m0 0l7 7m-7-7v18' },
       { label: '동료 추천',  href: '/nomination',   icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
     ],
   },
@@ -59,7 +60,7 @@ function SidebarItem({ label, href, icon }: { label: string; href: string; icon:
       className={cn(
         'flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-[13px] font-medium mb-0.5 transition-all',
         isActive
-          ? 'bg-blue-700/50 text-white [&_svg]:opacity-100'
+          ? 'bg-mint-500/25 text-white [&_svg]:opacity-100'
           : 'text-white/55 hover:bg-white/7 hover:text-white/85 [&_svg]:opacity-70'
       )}
     >
@@ -101,7 +102,7 @@ export default function Sidebar() {
       )}>
         {/* 로고 */}
         <div className="flex items-center gap-2.5 px-[18px] py-5 border-b border-white/7">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-mint-500 to-mint-400 flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0">
             EX
           </div>
           <div>

@@ -7,8 +7,15 @@ import { MOCK_QUESTIONS, MOCK_SURVEYS, MOCK_USERS } from '@/lib/mock'
 
 export default function UpwardSurveyPage() {
   const user = useAuthStore((s) => s.user)
-  const [scores, setScores] = useState<Record<string, number>>({})
-  const [comment, setComment] = useState('')
+
+  // 기존 상향 평가 데이터 (훅 이전에 계산)
+  const upwardSurveyInit = MOCK_SURVEYS.find((s) => s.surveyorId === user?.id && s.type === 'UPWARD')
+
+  // 기존 답변·코멘트로 초기화
+  const [scores, setScores] = useState<Record<string, number>>(
+    () => Object.fromEntries((upwardSurveyInit?.answers ?? []).map((a) => [a.questionId, a.score]))
+  )
+  const [comment, setComment] = useState(() => upwardSurveyInit?.comment ?? '')
   const [submitted, setSubmitted] = useState(false)
 
   if (!user) return null
@@ -41,7 +48,7 @@ export default function UpwardSurveyPage() {
           </div>
 
           <div className="flex items-center gap-3 bg-white rounded-2xl shadow-card p-5">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-navy to-blue-700 flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-mint-600 to-mint-800 flex items-center justify-center text-white font-bold text-sm">
               {manager.name.slice(0, 2)}
             </div>
             <div>
@@ -60,7 +67,7 @@ export default function UpwardSurveyPage() {
                   <button key={v} onClick={() => !isAlreadySubmitted && setScores((p) => ({ ...p, [q.id]: v }))}
                     disabled={isAlreadySubmitted}
                     className={`flex-1 h-10 rounded-lg border text-sm font-semibold transition-all ${
-                      scores[q.id] === v ? 'bg-blue-600 border-blue-600 text-white' : 'border-[#DDE3EE] text-[#4A5568] hover:border-blue-300 hover:bg-blue-50 disabled:cursor-default'
+                      scores[q.id] === v ? 'bg-mint-500 border-mint-500 text-white' : 'border-[#DDE3EE] text-[#4A5568] hover:border-mint-300 hover:bg-mint-50 disabled:cursor-default'
                     }`}>{v}
                   </button>
                 ))}
@@ -72,13 +79,13 @@ export default function UpwardSurveyPage() {
             <label className="block text-sm font-medium text-[#0D1B2A] mb-2">코멘트 <span className="text-[#8896A8] font-normal">(선택 · 익명)</span></label>
             <textarea value={comment} onChange={(e) => setComment(e.target.value)} disabled={isAlreadySubmitted} rows={3}
               placeholder="팀장에게 전달하고 싶은 피드백을 자유롭게 작성하세요"
-              className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50"
+              className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
             />
           </div>
 
           {!isAlreadySubmitted && (
             <button onClick={() => setSubmitted(true)} disabled={!allAnswered}
-              className="w-full h-11 bg-blue-600 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-blue-700 transition-colors">
+              className="w-full h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-mint-600 transition-colors">
               최종 제출
             </button>
           )}

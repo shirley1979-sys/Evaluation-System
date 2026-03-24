@@ -6,14 +6,16 @@
 
 @layer base {
   :root {
-    --navy: #0D1B2A;
-    --blue: #1D4ED8;
-    --blue2: #2563EB;
+    --navy: #192628;
+    --sidebar: #0D1B2A;
+    --mint: #07BEB8;
+    --mint2: #04AFAB;
+    --mint-light: #edfafa;
     --gold: #D4AF37;
     --bg: #F0F4FA;
     --surface: #FFFFFF;
     --border: #DDE3EE;
-    --text: #0D1B2A;
+    --text: #192628;
     --text2: #4A5568;
     --text3: #8896A8;
   }

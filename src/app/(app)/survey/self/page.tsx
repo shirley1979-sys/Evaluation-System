@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuthStore } from '@/store/auth'
@@ -22,15 +22,17 @@ type SelfForm = z.infer<typeof selfSchema>
 
 export default function SelfSurveyPage() {
   const user = useAuthStore((s) => s.user)
-  const [scores, setScores] = useState<Record<string, number>>({})
+
+  // 기존 셀프 평가 데이터 (훅 이전에 계산)
+  const selfSurvey = MOCK_SURVEYS.find((s) => s.surveyorId === user?.id && s.type === 'SELF')
+
+  // 기존 답변으로 scores 초기화
+  const [scores, setScores] = useState<Record<string, number>>(
+    () => Object.fromEntries((selfSurvey?.answers ?? []).map((a) => [a.questionId, a.score]))
+  )
   const [submitted, setSubmitted] = useState(false)
 
-  if (!user) return null
-
-  const selfSurvey = MOCK_SURVEYS.find((s) => s.surveyorId === user.id && s.type === 'SELF')
-  const isAlreadySubmitted = selfSurvey?.status === 'SUBMITTED' || submitted
-  const questions = MOCK_QUESTIONS.filter((q) => q.type === 'COMMON' || q.type === 'SELF')
-
+  // useForm은 조건부 return 이전에 호출해야 함 (훅 규칙)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SelfForm>({
     resolver: zodResolver(selfSchema),
     defaultValues: {
@@ -41,7 +43,12 @@ export default function SelfSurveyPage() {
   })
   const projects = watch('projects')
 
-  function onSubmit() { setSubmitted(true) }
+  if (!user) return null
+
+  const isAlreadySubmitted = selfSurvey?.status === 'SUBMITTED' || submitted
+  const questions = MOCK_QUESTIONS.filter((q) => q.type === 'COMMON' || q.type === 'SELF')
+
+  function onSubmit(_data: SelfForm) { setSubmitted(true) }
 
   return (
     <>
@@ -70,7 +77,7 @@ export default function SelfSurveyPage() {
                         onClick={() => !isAlreadySubmitted && setScores((p) => ({ ...p, [q.id]: v }))}
                         disabled={isAlreadySubmitted}
                         className={`flex-1 h-10 rounded-lg border text-sm font-semibold transition-all ${
-                          scores[q.id] === v ? 'bg-blue-600 border-blue-600 text-white' : 'border-[#DDE3EE] text-[#4A5568] hover:border-blue-300 hover:bg-blue-50 disabled:cursor-default'
+                          scores[q.id] === v ? 'bg-mint-500 border-mint-500 text-white' : 'border-[#DDE3EE] text-[#4A5568] hover:border-mint-300 hover:bg-mint-50 disabled:cursor-default'
                         }`}>{v}
                       </button>
                     ))}
@@ -87,7 +94,7 @@ export default function SelfSurveyPage() {
               <label className="block text-sm font-medium text-[#0D1B2A] mb-1.5">강점</label>
               <textarea {...register('strengths')} disabled={isAlreadySubmitted} rows={3}
                 placeholder="본인의 주요 강점을 서술하세요"
-                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50"
+                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
               />
               {errors.strengths && <p className="text-red-500 text-xs mt-1">{errors.strengths.message}</p>}
             </div>
@@ -95,7 +102,7 @@ export default function SelfSurveyPage() {
               <label className="block text-sm font-medium text-[#0D1B2A] mb-1.5">개선이 필요한 점</label>
               <textarea {...register('improvements')} disabled={isAlreadySubmitted} rows={3}
                 placeholder="개선하고 싶은 부분을 서술하세요"
-                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50"
+                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
               />
               {errors.improvements && <p className="text-red-500 text-xs mt-1">{errors.improvements.message}</p>}
             </div>
@@ -123,7 +130,7 @@ export default function SelfSurveyPage() {
                   {(['name', 'role', 'deliverable', 'impact'] as const).map((field) => (
                     <input key={field} {...register(`projects.${idx}.${field}`)} disabled={isAlreadySubmitted}
                       placeholder={{ name: '프로젝트명', role: '담당 역할', deliverable: '주요 산출물', impact: '임팩트/성과' }[field]}
-                      className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50"
+                      className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-mint-400 disabled:bg-gray-50"
                     />
                   ))}
                 </div>
@@ -133,7 +140,7 @@ export default function SelfSurveyPage() {
 
           {!isAlreadySubmitted && (
             <button type="submit"
-              className="w-full h-11 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 transition-colors">
+              className="w-full h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl hover:bg-mint-600 transition-colors">
               최종 제출
             </button>
           )}

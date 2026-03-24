@@ -9,7 +9,7 @@ import type { Survey } from '@/types'
 
 export default function PeerSurveyPage() {
   const user = useAuthStore((s) => s.user)
-  const { setDraft, getDraft } = useSurveyDraftStore()
+  const { setDraft, getDraft, clearDraft } = useSurveyDraftStore()
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
 
@@ -35,9 +35,9 @@ export default function PeerSurveyPage() {
             return (
               <button key={s.id} onClick={() => setActiveTargetId(s.id)}
                 className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl mb-1 text-left transition-all ${
-                  activeSurvey?.id === s.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'
+                  activeSurvey?.id === s.id ? 'bg-mint-50 border border-mint-200' : 'hover:bg-gray-50 border border-transparent'
                 }`}>
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mint-400 to-mint-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                   {s.target?.name.slice(0, 2)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -64,7 +64,12 @@ export default function PeerSurveyPage() {
               initiallySubmitted={activeSurvey.status === 'SUBMITTED' || submittedIds.has(activeSurvey.id)}
               initialAnswers={activeSurvey.answers}
               initialComment={activeSurvey.comment}
-              onSubmit={() => setSubmittedIds((prev) => new Set(prev).add(activeSurvey.id))}
+              savedDraft={getDraft(activeSurvey.id)}
+              onSave={(scores, comment) => setDraft(activeSurvey.id, scores, comment)}
+              onSubmit={() => {
+                clearDraft(activeSurvey.id)
+                setSubmittedIds((prev) => new Set(prev).add(activeSurvey.id))
+              }}
             />
           ) : (
             <p className="text-center text-[#8896A8] mt-20">배정된 동료 평가가 없습니다</p>
@@ -75,23 +80,29 @@ export default function PeerSurveyPage() {
   )
 }
 
-function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, initialComment, onSubmit }: {
+function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, initialComment, savedDraft, onSave, onSubmit }: {
   survey: Survey
   questions: typeof MOCK_QUESTIONS
   initiallySubmitted: boolean
   initialAnswers: { questionId: string; score: number }[]
   initialComment: string
+  savedDraft?: { scores: Record<string, number>; comment: string }
+  onSave: (scores: Record<string, number>, comment: string) => void
   onSubmit: () => void
 }) {
-  const initScores = Object.fromEntries(initialAnswers.map((a) => [a.questionId, a.score]))
+  // draft → 기제출 답변 → 빈값 순서로 초기화
+  const initScores = savedDraft?.scores ?? Object.fromEntries(initialAnswers.map((a) => [a.questionId, a.score]))
+  const initComment = savedDraft?.comment ?? initialComment ?? ''
+
   const [scores, setScores] = useState<Record<string, number>>(initScores)
-  const [comment, setComment] = useState(initialComment ?? '')
+  const [comment, setComment] = useState(initComment)
   const [submitted, setSubmitted] = useState(initiallySubmitted)
   const [saved, setSaved] = useState(false)
 
   const allAnswered = questions.every((q) => scores[q.id] !== undefined)
 
   function handleSave() {
+    onSave(scores, comment)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -132,8 +143,8 @@ function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, ini
                   disabled={submitted}
                   className={`flex-1 h-10 rounded-lg border text-sm font-semibold transition-all ${
                     scores[q.id] === v
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                      : 'border-[#DDE3EE] text-[#4A5568] hover:border-blue-300 hover:bg-blue-50 disabled:cursor-default disabled:opacity-70'
+                      ? 'bg-mint-500 border-mint-500 text-white shadow-sm'
+                      : 'border-[#DDE3EE] text-[#4A5568] hover:border-mint-300 hover:bg-mint-50 disabled:cursor-default disabled:opacity-70'
                   }`}>{v}
                 </button>
               ))}
@@ -151,7 +162,7 @@ function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, ini
           <label className="block text-sm font-medium text-[#0D1B2A] mb-2">코멘트 <span className="text-[#8896A8] font-normal">(선택 · 익명)</span></label>
           <textarea value={comment} onChange={(e) => setComment(e.target.value)} disabled={submitted} rows={3}
             placeholder="자유롭게 피드백을 남겨주세요. 익명으로 전달됩니다."
-            className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50"
+            className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
           />
         </div>
       </div>
@@ -160,7 +171,7 @@ function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, ini
         <div className="flex gap-3 mt-5">
           <button onClick={handleSave} className="flex-1 h-11 border border-[#DDE3EE] text-sm font-medium text-[#4A5568] rounded-xl hover:bg-gray-50 transition-colors">임시 저장</button>
           <button onClick={handleSubmit} disabled={!allAnswered}
-            className="flex-1 h-11 bg-blue-600 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-blue-700 transition-colors">
+            className="flex-1 h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-mint-600 transition-colors">
             최종 제출
           </button>
         </div>

@@ -14,7 +14,7 @@ const STATUS_LABEL: Record<IdpGoalStatus, string> = {
 }
 const STATUS_COLOR: Record<IdpGoalStatus, string> = {
   NOT_STARTED: 'bg-gray-100 text-gray-600',
-  IN_PROGRESS: 'bg-blue-50 text-blue-600 border border-blue-200',
+  IN_PROGRESS: 'bg-mint-50 text-mint-600 border border-mint-200',
   COMPLETED:   'bg-green-50 text-green-600 border border-green-200',
 }
 
@@ -37,7 +37,7 @@ export default function IdpPage() {
   if (!user) return null
   const idp = MOCK_IDP
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm<IdpForm>({
+  const { register, control, handleSubmit, watch, formState: { errors } } = useForm<IdpForm>({
     resolver: zodResolver(schema),
     defaultValues: {
       strengths:    idp.strengths,
@@ -48,6 +48,7 @@ export default function IdpPage() {
     },
   })
   const { fields, append, remove } = useFieldArray({ control, name: 'goals' })
+  const liveGoals = watch('goals')
 
   function onSubmit() {
     setSaved(true)
@@ -72,13 +73,13 @@ export default function IdpPage() {
             <div>
               <label className="block text-sm font-medium text-[#0D1B2A] mb-1.5">강점</label>
               <textarea {...register('strengths')} rows={2}
-                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#0D1B2A] mb-1.5">개발이 필요한 역량</label>
               <textarea {...register('improvements')} rows={2}
-                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100"
               />
             </div>
           </div>
@@ -89,7 +90,7 @@ export default function IdpPage() {
               <h3 className="font-semibold text-[#0D1B2A]">개발 목표</h3>
               <button type="button"
                 onClick={() => append({ skill: '', action: '', dueDate: '', status: 'NOT_STARTED' })}
-                className="text-xs text-blue-600 hover:underline">+ 목표 추가</button>
+                className="text-xs text-mint-600 hover:underline">+ 목표 추가</button>
             </div>
             <div className="space-y-4">
               {fields.map((field, idx) => (
@@ -101,14 +102,14 @@ export default function IdpPage() {
                     )}
                   </div>
                   <input {...register(`goals.${idx}.skill`)} placeholder="개발 역량 (예: 시스템 설계)"
-                    className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                    className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-mint-400" />
                   <input {...register(`goals.${idx}.action`)} placeholder="구체적인 액션 플랜"
-                    className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                    className="w-full h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-mint-400" />
                   <div className="flex gap-3">
                     <input {...register(`goals.${idx}.dueDate`)} type="date"
-                      className="flex-1 h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                      className="flex-1 h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm focus:outline-none focus:border-mint-400" />
                     <select {...register(`goals.${idx}.status`)}
-                      className="flex-1 h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+                      className="flex-1 h-9 px-3 border border-[#DDE3EE] rounded-lg text-sm bg-white focus:outline-none focus:border-mint-400">
                       {(Object.entries(STATUS_LABEL) as [IdpGoalStatus, string][]).map(([v, l]) => (
                         <option key={v} value={v}>{l}</option>
                       ))}
@@ -124,7 +125,7 @@ export default function IdpPage() {
             <h3 className="font-semibold text-[#0D1B2A] mb-3">진행 현황</h3>
             <div className="grid grid-cols-3 gap-3">
               {(['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'] as IdpGoalStatus[]).map((s) => {
-                const cnt = idp.goals.filter((g) => g.status === s).length
+                const cnt = (liveGoals ?? []).filter((g) => g.status === s).length
                 return (
                   <div key={s} className={`rounded-xl p-3 text-center ${STATUS_COLOR[s]}`}>
                     <p className="text-2xl font-bold">{cnt}</p>
@@ -136,7 +137,7 @@ export default function IdpPage() {
           </div>
 
           <button type="submit"
-            className="w-full h-11 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 transition-colors">
+            className="w-full h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl hover:bg-mint-600 transition-colors">
             IDP 저장
           </button>
         </form>

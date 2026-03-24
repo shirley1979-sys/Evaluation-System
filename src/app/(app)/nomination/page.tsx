@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth'
+import { useEmployeeStore } from '@/store/employees'
 import Topbar from '@/components/layout/Topbar'
-import { MOCK_USERS, MOCK_NOMINATIONS } from '@/lib/mock'
+import { MOCK_NOMINATIONS } from '@/lib/mock'
 import type { User } from '@/types'
 
 const MAX_TEAMMATES = 4
@@ -13,6 +14,7 @@ const MIN_TOTAL = 3
 
 export default function NominationPage() {
   const user = useAuthStore((s) => s.user)
+  const allEmployees = useEmployeeStore((s) => s.employees)
 
   const initialSelected = MOCK_NOMINATIONS
     .filter((n) => n.nominatorId === user?.id)
@@ -29,7 +31,7 @@ export default function NominationPage() {
   const total = selected.length
 
   const myTeamId = user.teamId
-  const allOthers = MOCK_USERS.filter((u) => u.id !== user.id && u.isActive)
+  const allOthers = allEmployees.filter((u) => u.id !== user.id && u.isActive)
   const filtered = useMemo(() =>
     allOthers.filter((e) => e.name.includes(search) || e.email.includes(search)),
     [search]
@@ -74,11 +76,11 @@ export default function NominationPage() {
 
           <div className="flex flex-wrap gap-2 min-h-10 mb-4">
             {selected.map(({ id, group }) => {
-              const emp = MOCK_USERS.find((e) => e.id === id)
+              const emp = allEmployees.find((e) => e.id === id)
               if (!emp) return null
               return (
                 <span key={id} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
-                  group === 'TEAMMATE' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-purple-50 border-purple-200 text-purple-700'
+                  group === 'TEAMMATE' ? 'bg-mint-50 border-mint-200 text-mint-700' : 'bg-purple-50 border-purple-200 text-purple-700'
                 }`}>
                   {emp.name}
                   {!submitted && (
@@ -94,7 +96,7 @@ export default function NominationPage() {
             <button
               onClick={() => setSubmitted(true)}
               disabled={total < MIN_TOTAL}
-              className="w-full h-11 bg-blue-600 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-blue-700 transition-colors"
+              className="w-full h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-mint-600 transition-colors"
             >
               추천 제출 ({total}/{MAX_TOTAL}명) {total < MIN_TOTAL && `— 최소 ${MIN_TOTAL}명 필요`}
             </button>
@@ -107,7 +109,7 @@ export default function NominationPage() {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="이름으로 검색"
-            className="w-full h-11 pl-10 pr-4 bg-white border border-[#DDE3EE] rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+            className="w-full h-11 pl-10 pr-4 bg-white border border-[#DDE3EE] rounded-xl text-sm focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100" />
         </div>
 
         <EmployeeSection title="같은 팀 동료" group="TEAMMATE" employees={myTeammates} selected={selected} onToggle={toggle} disabled={submitted} max={MAX_TEAMMATES} current={teammates.length} />
@@ -135,9 +137,9 @@ function EmployeeSection({ title, group, employees, selected, onToggle, disabled
             <button key={emp.id} onClick={() => onToggle(emp.id, group)}
               disabled={disabled || (!isSelected && current >= max)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
-                isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-[#F0F4FA] border border-transparent disabled:opacity-40 disabled:cursor-not-allowed'
+                isSelected ? 'bg-mint-50 border border-mint-200' : 'hover:bg-[#F0F4FA] border border-transparent disabled:opacity-40 disabled:cursor-not-allowed'
               }`}>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-mint-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {emp.name.slice(0, 2)}
               </div>
               <div className="min-w-0 flex-1">
@@ -145,7 +147,7 @@ function EmployeeSection({ title, group, employees, selected, onToggle, disabled
                 <p className="text-xs text-[#8896A8]">{emp.jobTitle} · {emp.team?.name}</p>
               </div>
               {isSelected && (
-                <svg className="text-blue-600 flex-shrink-0" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="text-mint-500 flex-shrink-0" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               )}
