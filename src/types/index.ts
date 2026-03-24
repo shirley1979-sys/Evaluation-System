@@ -7,7 +7,7 @@ export type Role = 'MEMBER' | 'MANAGER' | 'EXECUTIVE' | 'HR_ADMIN' | 'SUPER_ADMI
 // 평가 유형
 // ──────────────────────────────────────────────
 export type EvalType = 'DOWNWARD' | 'UPWARD' | 'PEER' | 'SELF'
-export type QuestionType = 'COMMON' | 'DOWNWARD' | 'UPWARD' | 'PEER' | 'SELF'
+export type QuestionType = 'COMMON' | 'DOWNWARD' | 'UPWARD' | 'PEER' | 'SELF' | 'TEXT'
 export type CyclePhase = 'SETUP' | 'NOMINATION' | 'HR_CONFIRM' | 'EVALUATION' | 'CLOSED' | 'RESULTS_OPEN'
 export type NominationStatus = 'PENDING' | 'SUBMITTED' | 'CONFIRMED'
 export type SurveyStatus = 'DRAFT' | 'SUBMITTED'

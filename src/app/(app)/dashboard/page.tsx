@@ -6,7 +6,9 @@ import { useAuthStore } from '@/store/auth'
 import { useEmployeeStore, type UploadRow } from '@/store/employees'
 import { useQuestionsStore, TYPE_LABEL, TYPE_COLOR } from '@/store/questions'
 import { useEvalCycleStore, PHASE_ORDER, PHASE_LABEL, PHASE_NEXT_ACTION } from '@/store/cycle'
-import { MOCK_SURVEYS, MOCK_NOMINATIONS, MOCK_USERS, getSurveysForSurveyor } from '@/lib/mock'
+import { MOCK_SURVEYS, MOCK_USERS, getSurveysForSurveyor } from '@/lib/mock'
+import { useNominationStore } from '@/store/nominations'
+import { useSelfEvalStore } from '@/store/selfEval'
 import type { Role, Question, QuestionType, AuthUser } from '@/types'
 import * as XLSX from 'xlsx'
 
@@ -440,114 +442,102 @@ function EmployeeTab() {
 // 진행 현황 탭
 // ════════════════════════════════════════════════
 function ProgressTab({ phase }: { phase: string }) {
-  const employees = useEmployeeStore((s) => s.employees)
+  const employees   = useEmployeeStore((s) => s.employees)
+  const nomEntries  = useNominationStore((s) => s.entries)
+  const selfEntries = useSelfEvalStore((s) => s.entries)
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
+
   const activeEmps = employees.filter((u) => u.isActive && u.role !== 'SUPER_ADMIN' && u.role !== 'HR_ADMIN')
   const total = activeEmps.length
 
-  function countSubmitted(type: string) {
-    return new Set(MOCK_SURVEYS.filter((s) => s.type === type && s.status === 'SUBMITTED').map((s) => s.surveyorId)).size
+  // 개인별 완료 계산
+  function empStatus(emp: (typeof activeEmps)[0]) {
+    const surveys   = MOCK_SURVEYS.filter((s) => s.surveyorId === emp.id)
+    const selfEntry = selfEntries.find((e) => e.userId === emp.id)
+    const nomEntry  = nomEntries.find((e) => e.nominatorId === emp.id)
+
+    const nomDone      = nomEntry?.status === 'HR_CONFIRMED'
+    const selfDone     = selfEntry?.status === 'SUBMITTED' || surveys.find((s) => s.type === 'SELF')?.status === 'SUBMITTED'
+    const peerSurveys  = surveys.filter((s) => s.type === 'PEER')
+    const peerDone     = peerSurveys.length > 0 && peerSurveys.every((s) => s.status === 'SUBMITTED')
+    const upwardSurvey = surveys.find((s) => s.type === 'UPWARD')
+    const upwardDone   = upwardSurvey ? upwardSurvey.status === 'SUBMITTED' : null
+    const downSurveys  = surveys.filter((s) => s.type === 'DOWNWARD')
+    const downDone     = downSurveys.length > 0 && downSurveys.every((s) => s.status === 'SUBMITTED')
+    const overall      = !!nomDone && !!selfDone && peerDone
+
+    return { nomDone: !!nomDone, selfDone: !!selfDone, peerDone, upwardDone, downDone, overall }
   }
-  const nominationConfirmed = new Set(MOCK_NOMINATIONS.filter((n) => n.status === 'CONFIRMED').map((n) => n.nominatorId)).size
 
+  const matrix = activeEmps.map((emp) => ({ emp, ...empStatus(emp) }))
+
+  // 전체 지표
   const stats = [
-    { label: '동료 추천 확정', done: nominationConfirmed, color: 'bg-mint-500', light: 'bg-mint-50 text-mint-700' },
-    { label: '셀프 평가',     done: countSubmitted('SELF'),    color: 'bg-blue-500', light: 'bg-blue-50 text-blue-700' },
-    { label: '동료 평가',     done: countSubmitted('PEER'),    color: 'bg-purple-500', light: 'bg-purple-50 text-purple-700' },
-    { label: '상향 평가',     done: countSubmitted('UPWARD'),  color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700' },
+    { label: '동료 추천 확정', done: matrix.filter((r) => r.nomDone).length,   color: 'bg-mint-500'   },
+    { label: '셀프 평가',     done: matrix.filter((r) => r.selfDone).length,  color: 'bg-blue-500'   },
+    { label: '동료 평가',     done: matrix.filter((r) => r.peerDone).length,  color: 'bg-purple-500' },
+    { label: '상향 평가',     done: matrix.filter((r) => r.upwardDone === true).length, color: 'bg-amber-500'  },
+    { label: '하향 평가',     done: matrix.filter((r) => r.downDone).length,  color: 'bg-rose-500'   },
   ]
+  const overallDone = matrix.filter((r) => r.overall).length
 
-  // 팀별 진행률
-  const teamMap = new Map<string, { name: string; emps: typeof activeEmps }>()
+  // 팀별 그룹
+  const teamMap = new Map<string, typeof activeEmps>()
   for (const emp of activeEmps) {
     const key = emp.team?.name ?? '미배정'
-    if (!teamMap.has(key)) teamMap.set(key, { name: key, emps: [] })
-    teamMap.get(key)!.emps.push(emp)
+    if (!teamMap.has(key)) teamMap.set(key, [])
+    teamMap.get(key)!.push(emp)
   }
-
-  // 개인별 완료 현황
-  const completionMatrix = activeEmps.map((emp) => {
-    const mySurveys = MOCK_SURVEYS.filter((s) => s.surveyorId === emp.id)
-    const self    = mySurveys.find((s) => s.type === 'SELF')
-    const peer    = mySurveys.filter((s) => s.type === 'PEER')
-    const upward  = mySurveys.find((s) => s.type === 'UPWARD')
-    const nomDone = MOCK_NOMINATIONS.some((n) => n.nominatorId === emp.id)
-
-    const selfDone   = self?.status === 'SUBMITTED'
-    const peerDone   = peer.length > 0 && peer.every((s) => s.status === 'SUBMITTED')
-    const upwardDone = upward ? upward.status === 'SUBMITTED' : null
-    const overall = [selfDone, peerDone, upwardDone !== null ? upwardDone : null, nomDone]
-      .filter((v) => v !== null).every(Boolean)
-
-    return { emp, selfDone, peerDone, upwardDone, nomDone, overall }
-  })
-
-  const overallDone = completionMatrix.filter((r) => r.overall).length
+  const teams = Array.from(teamMap.entries())
+    .map(([name, emps]) => {
+      const rows = emps.map((emp) => ({ emp, ...empStatus(emp) }))
+      const done = rows.filter((r) => r.overall).length
+      const rate = emps.length > 0 ? Math.round((done / emps.length) * 100) : 0
+      return { name, emps, rows, done, rate }
+    })
+    .sort((a, b) => b.emps.length - a.emps.length)
 
   return (
     <div className="space-y-5 max-w-4xl">
-      {/* 단계별 현황 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const rate = total > 0 ? Math.round((s.done / total) * 100) : 0
-          return (
-            <div key={s.label} className="bg-white rounded-2xl shadow-card p-4">
-              <p className="text-xs text-[#8896A8] mb-1.5">{s.label}</p>
-              <p className="text-2xl font-extrabold text-[#192628]">{rate}%</p>
-              <p className="text-xs text-[#8896A8] mt-0.5">{s.done}/{total}명</p>
-              <div className="mt-2.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${s.color}`} style={{ width: `${rate}%` }} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
 
-      {/* 전체 완료율 */}
-      <div className="bg-white rounded-2xl shadow-card p-5 flex items-center gap-5">
-        <div className="relative w-16 h-16 flex-shrink-0">
-          <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-            <circle cx="32" cy="32" r="26" fill="none" stroke="#F0F4FA" strokeWidth="6" />
-            <circle cx="32" cy="32" r="26" fill="none" stroke="#07BEB8" strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 26}`}
-              strokeDashoffset={`${2 * Math.PI * 26 * (1 - overallDone / (total || 1))}`}
-              className="transition-all"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-bold text-[#192628]">{total > 0 ? Math.round(overallDone / total * 100) : 0}%</span>
+      {/* 전체 평가 현황 */}
+      <div className="bg-white rounded-2xl shadow-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-[#192628]">전체 평가 현황</h3>
+          <span className="text-xs text-[#8896A8]">{CYCLE_PHASE_KO[phase] ?? phase} 단계</span>
+        </div>
+        <div className="flex items-center gap-6 mb-5">
+          <div className="relative w-20 h-20 flex-shrink-0">
+            <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#F0F4FA" strokeWidth="7" />
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#07BEB8" strokeWidth="7"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 26}`}
+                strokeDashoffset={`${2 * Math.PI * 26 * (1 - overallDone / (total || 1))}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-bold text-[#192628]">
+                {total > 0 ? Math.round(overallDone / total * 100) : 0}%
+              </span>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[#192628]">전체 완료율</p>
+            <p className="text-xs text-[#8896A8] mt-0.5">{overallDone}/{total}명 완료</p>
           </div>
         </div>
-        <div>
-          <p className="font-semibold text-[#192628]">전체 평가 완료율</p>
-          <p className="text-sm text-[#8896A8] mt-0.5">모든 항목 완료 기준 · {overallDone}/{total}명 완료</p>
-        </div>
-        <div className="ml-auto text-right">
-          <p className="text-xs text-[#8896A8]">현재 사이클 단계</p>
-          <p className="text-sm font-bold text-[#192628] mt-0.5">{CYCLE_PHASE_KO[phase] ?? phase}</p>
-        </div>
-      </div>
-
-      {/* 팀별 진행률 */}
-      <div className="bg-white rounded-2xl shadow-card p-5">
-        <h3 className="font-semibold text-[#192628] mb-4">팀별 진행률</h3>
-        <div className="space-y-3">
-          {Array.from(teamMap.values()).sort((a, b) => b.emps.length - a.emps.length).map((team) => {
-            const done = team.emps.filter((emp) => {
-              const surveys = MOCK_SURVEYS.filter((s) => s.surveyorId === emp.id && s.status === 'SUBMITTED')
-              return surveys.length >= 2
-            }).length
-            const rate = team.emps.length > 0 ? Math.round((done / team.emps.length) * 100) : 0
+        <div className="space-y-2.5">
+          {stats.map((s) => {
+            const rate = total > 0 ? Math.round((s.done / total) * 100) : 0
             return (
-              <div key={team.name}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-medium text-[#192628]">{team.name}</span>
-                  <span className="text-xs text-[#8896A8]">{done}/{team.emps.length}명 · {rate}%</span>
+              <div key={s.label}>
+                <div className="flex justify-between mb-1">
+                  <span className="text-xs font-medium text-[#192628]">{s.label}</span>
+                  <span className="text-xs text-[#8896A8]">{s.done}/{total}명 · {rate}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${
-                    rate === 100 ? 'bg-green-500' : rate >= 70 ? 'bg-mint-500' : rate >= 40 ? 'bg-yellow-400' : 'bg-red-400'
-                  }`} style={{ width: `${rate}%` }} />
+                  <div className={`h-full rounded-full transition-all ${s.color}`} style={{ width: `${rate}%` }} />
                 </div>
               </div>
             )
@@ -555,47 +545,88 @@ function ProgressTab({ phase }: { phase: string }) {
         </div>
       </div>
 
-      {/* 개인별 완료 매트릭스 */}
+      {/* 팀별 진행률 — 클릭하면 개인 현황 패널 */}
       <div className="bg-white rounded-2xl shadow-card p-5">
-        <h3 className="font-semibold text-[#192628] mb-4">개인별 완료 현황</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-[#F0F4FA]">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#4A5568]">이름</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#4A5568]">팀</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-[#4A5568]">동료 추천</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-[#4A5568]">셀프 평가</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-[#4A5568]">동료 평가</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-[#4A5568]">상향 평가</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-[#4A5568]">종합</th>
-              </tr>
-            </thead>
-            <tbody>
-              {completionMatrix.map(({ emp, selfDone, peerDone, upwardDone, nomDone, overall }) => (
-                <tr key={emp.id} className="border-t border-[#DDE3EE] hover:bg-[#F8FAFD] transition-colors">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mint-400 to-mint-600 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
-                        {emp.name.slice(0, 2)}
-                      </div>
-                      <span className="font-medium text-[#192628] text-xs">{emp.name}</span>
+        <h3 className="font-semibold text-[#192628] mb-4">팀별 진행률</h3>
+        <div className="space-y-3">
+          {teams.map((team) => {
+            const isOpen = selectedTeam === team.name
+            return (
+              <div key={team.name} className="border border-[#DDE3EE] rounded-xl overflow-hidden">
+                {/* 팀 헤더 — 클릭 토글 */}
+                <button
+                  onClick={() => setSelectedTeam(isOpen ? null : team.name)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F8FAFD] transition-colors"
+                >
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-sm font-semibold text-[#192628]">{team.name}</span>
+                      <span className="text-xs text-[#8896A8]">{team.emps.length}명</span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-1 ${
+                        team.rate === 100 ? 'bg-green-50 text-green-600' :
+                        team.rate >= 70 ? 'bg-mint-50 text-mint-600' :
+                        team.rate >= 40 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-500'
+                      }`}>{team.rate}%</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-[#8896A8] text-xs">{emp.team?.name ?? '-'}</td>
-                  <StatusCell done={nomDone} />
-                  <StatusCell done={selfDone} />
-                  <StatusCell done={peerDone} />
-                  <StatusCell done={upwardDone} nullable />
-                  <td className="px-4 py-2.5 text-center">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${overall ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                      {overall ? '완료' : '미완료'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${
+                        team.rate === 100 ? 'bg-green-500' : team.rate >= 70 ? 'bg-mint-500' : team.rate >= 40 ? 'bg-yellow-400' : 'bg-red-400'
+                      }`} style={{ width: `${team.rate}%` }} />
+                    </div>
+                  </div>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#8896A8" strokeWidth={2}
+                    className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+
+                {/* 개인별 현황 패널 */}
+                {isOpen && (
+                  <div className="border-t border-[#DDE3EE] overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#F0F4FA]">
+                          <th className="px-4 py-2 text-left font-semibold text-[#4A5568]">이름</th>
+                          <th className="px-4 py-2 text-left font-semibold text-[#4A5568]">직책</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">동료추천</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">셀프</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">동료</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">상향</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">하향</th>
+                          <th className="px-4 py-2 text-center font-semibold text-[#4A5568]">종합</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {team.rows.map(({ emp, nomDone, selfDone, peerDone, upwardDone, downDone, overall }) => (
+                          <tr key={emp.id} className="border-t border-[#DDE3EE] hover:bg-[#F8FAFD]">
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-mint-400 to-mint-600 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+                                  {emp.name.slice(0, 2)}
+                                </div>
+                                <span className="font-medium text-[#192628] whitespace-nowrap">{emp.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-[#8896A8] whitespace-nowrap">{emp.jobTitle ?? '-'}</td>
+                            <StatusCell done={nomDone} />
+                            <StatusCell done={selfDone} />
+                            <StatusCell done={peerDone} />
+                            <StatusCell done={upwardDone} nullable />
+                            <StatusCell done={downDone} />
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                overall ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-amber-50 text-amber-600 border border-amber-200'
+                              }`}>{overall ? '완료' : '미완료'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -604,19 +635,14 @@ function ProgressTab({ phase }: { phase: string }) {
 
 function StatusCell({ done, nullable = false }: { done: boolean | null; nullable?: boolean }) {
   if (nullable && done === null) {
-    return <td className="px-4 py-2.5 text-center"><span className="text-[#DDE3EE] text-xs">—</span></td>
+    return <td className="px-4 py-2.5 text-center"><span className="text-[#DDE3EE]">—</span></td>
   }
   return (
     <td className="px-4 py-2.5 text-center">
-      {done ? (
-        <svg className="inline text-green-500" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      ) : (
-        <svg className="inline text-red-300" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      )}
+      {done
+        ? <svg className="inline text-green-500" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+        : <svg className="inline text-red-300"   width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      }
     </td>
   )
 }
@@ -821,8 +847,9 @@ function MemberDashboard({ user }: { user: AuthUser }) {
   const selfSurvey = MOCK_SURVEYS.find((s) => s.surveyorId === user.id && s.type === 'SELF')
   const selfDone   = selfSurvey?.status === 'SUBMITTED'
 
-  const myNominations  = MOCK_NOMINATIONS.filter((n) => n.nominatorId === user.id)
-  const nominationDone = myNominations.length > 0
+  const nomEntry       = useNominationStore((s) => s.getEntry(user.id))
+  const nominationDone = !!nomEntry && nomEntry.status !== 'NONE'
+  const myNominations  = nomEntry?.nominees ?? []
 
   const totalTasks = mySurveys.length + 2
   const doneTasks  = doneSurveys.length + (selfDone ? 1 : 0) + (nominationDone ? 1 : 0)

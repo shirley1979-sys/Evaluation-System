@@ -44,7 +44,7 @@ export const useQuestionsStore = create<QuestionsState>()(
 )
 
 export const TYPE_LABEL: Record<QuestionType | 'ALL', string> = {
-  ALL: '전체', COMMON: '공통', DOWNWARD: '하향', UPWARD: '상향', PEER: '동료', SELF: '셀프',
+  ALL: '전체', COMMON: '공통', DOWNWARD: '하향', UPWARD: '상향', PEER: '동료', SELF: '셀프', TEXT: '주관식',
 }
 
 export const TYPE_COLOR: Record<QuestionType, string> = {
@@ -53,4 +53,5 @@ export const TYPE_COLOR: Record<QuestionType, string> = {
   UPWARD:   'bg-green-50 text-green-700',
   PEER:     'bg-orange-50 text-orange-700',
   SELF:     'bg-gray-100 text-gray-600',
+  TEXT:     'bg-blue-50 text-blue-700',
 }
