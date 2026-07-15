@@ -11,6 +11,7 @@ export const MOCK_TEAMS: Team[] = [
   { id: 't2', name: 'Global Platform',         managerId: 'u7',  division: null },
   { id: 't3', name: 'Design Studio',           managerId: 'u11', division: null },
   { id: 't4', name: 'Data Intelligence',       managerId: 'u14', division: null },
+  { id: 't5', name: 'TEST팀',                  managerId: 'u18', division: 'QA 테스트' },
 ]
 
 // ──────────────────────────────────────────────
@@ -38,6 +39,9 @@ export const MOCK_USERS: User[] = [
   // HR / Admin
   { id: 'u15', name: 'Shirley',nameEng: 'Shirley', nickname: 'Shirley', email: 'shirley@everex.co.kr',  role: 'HR_ADMIN',   teamId: null, team: undefined,    jobTitle: 'HR팀장', jobDuty: 'HR 관리자',           hireDate: '2014-06-01', leaveDate: null, ssnPrefix: '820905', managerEmail: null,                   isActive: true },
   { id: 'u16', name: '관리자', nameEng: 'Admin',   nickname: 'Admin',   email: 'admin@everex.co.kr',    role: 'SUPER_ADMIN',teamId: null, team: undefined,    jobTitle: '관리자', jobDuty: '슈퍼관리자',           hireDate: '2010-01-01', leaveDate: null, ssnPrefix: '800101', managerEmail: null,                   isActive: true },
+  // TEST팀 — 워크플로우 테스트용 (직원TEST가 팀장TEST를 상향평가, 팀장TEST가 직원TEST를 하향평가)
+  { id: 'u17', name: '직원TEST', nameEng: 'MemberTest', nickname: '직원TEST', email: 'membertest@everex.co.kr', role: 'MEMBER',  teamId: 't5', team: MOCK_TEAMS[4], jobTitle: '사원', jobDuty: 'QA 테스트', hireDate: '2026-01-01', leaveDate: null, ssnPrefix: '000101', managerEmail: 'leadtest@everex.co.kr', isActive: true },
+  { id: 'u18', name: '팀장TEST', nameEng: 'LeadTest',   nickname: '팀장TEST', email: 'leadtest@everex.co.kr',   role: 'MANAGER', teamId: 't5', team: MOCK_TEAMS[4], jobTitle: '팀장', jobDuty: 'QA 테스트 팀장', hireDate: '2025-01-01', leaveDate: null, ssnPrefix: '000102', managerEmail: null,                    isActive: true },
 ]
 
 // ──────────────────────────────────────────────
@@ -177,6 +181,13 @@ export const MOCK_SURVEYS: Survey[] = [
     status: 'DRAFT', submittedAt: null,
     comment: '', answers: [],
     target: MOCK_USERS[1], surveyor: MOCK_USERS[0],
+  },
+  // TEST팀 워크플로우 테스트: 직원TEST → 팀장TEST 상향평가 (미작성)
+  {
+    id: 'sv9', cycleId: 'cycle2026', surveyorId: 'u17', targetId: 'u18', type: 'UPWARD',
+    status: 'DRAFT', submittedAt: null,
+    comment: '', answers: [],
+    target: MOCK_USERS[17], surveyor: MOCK_USERS[16],
   },
 ]
 

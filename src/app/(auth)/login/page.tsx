@@ -122,8 +122,27 @@ function LoginForm() {
             </button>
           ))}
         </div>
+
+        <p className="text-[11px] font-semibold text-[#8896A8] mt-4 mb-2.5">워크플로우 테스트 계정</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { email: 'membertest@everex.co.kr', label: '직원TEST', hint: 'TEST팀 · 팀원' },
+            { email: 'leadtest@everex.co.kr',   label: '팀장TEST', hint: 'TEST팀 · 팀장' },
+          ]).map(({ email, label, hint }) => (
+            <button
+              key={email}
+              type="button"
+              onClick={() => handleDemo(email)}
+              className="flex flex-col items-center gap-0.5 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-amber-700 transition-colors"
+            >
+              <span className="text-[11px] font-semibold">{label}</span>
+              <span className="text-[9px] text-amber-600">{hint}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="mt-3 text-[10.5px] text-[#8896A8] leading-relaxed">
-          데모 계정 공통 비밀번호: <span className="tracking-wide font-medium text-[#4A5568]">{DEMO_PASSWORD}</span>
+          데모/테스트 계정 공통 비밀번호: <span className="tracking-wide font-medium text-[#4A5568]">{DEMO_PASSWORD}</span>
         </div>
       </div>
     </div>

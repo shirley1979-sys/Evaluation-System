@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import type { AuthUser, Role } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+import { MOCK_USERS } from '@/lib/mock'
 
 interface AuthState {
   user: AuthUser | null
@@ -20,12 +21,17 @@ async function loadProfileAsUser(userId: string): Promise<AuthUser | null> {
     .eq('id', userId)
     .single()
   if (error || !data) return null
+
+  // 나머지 화면(동료추천·설문·평가·IDP 등)은 아직 mock 데이터 기준 id/teamId로 서로를 참조하므로,
+  // 이메일이 일치하는 mock 사용자가 있으면 그 id/teamId를 그대로 사용해 호환을 유지한다.
+  const mockMatch = MOCK_USERS.find((u) => u.email.toLowerCase() === data.email.toLowerCase())
+
   return {
-    id: data.id,
+    id: mockMatch?.id ?? data.id,
     name: data.name,
     email: data.email,
     role: data.role as Role,
-    teamId: data.team_id,
+    teamId: mockMatch?.teamId ?? data.team_id,
   }
 }
 
