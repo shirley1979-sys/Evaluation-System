@@ -228,7 +228,7 @@ function EditModal({
   function addNominee(emp: User) {
     if (nominees.length >= MAX) return
     const group: NominationGroup = emp.teamId === nominatorTeamId ? 'TEAMMATE' : 'COLLAB'
-    setNominees((prev) => [...prev, { userId: emp.id, group }])
+    setNominees((prev) => [...prev, { userId: emp.id, group, approval: 'PENDING' }])
   }
 
   function removeNominee(userId: string) {

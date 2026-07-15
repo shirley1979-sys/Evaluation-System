@@ -11,15 +11,21 @@ import type { User, NominationGroup } from '@/types'
 const MAX_TEAMMATES = 4
 const MAX_COLLABS   = 4
 const MAX_TOTAL     = 7
-const MIN_TOTAL     = 3
+const MIN_TOTAL     = 5
+
+// 총 인원의 50% 이상은 타부서(협업) 동료여야 함
+function minCollabRequired(total: number) {
+  return Math.ceil(total / 2)
+}
 
 export default function NominationPage() {
   const user = useAuthStore((s) => s.user)
   const allEmployees = useEmployeeStore((s) => s.employees)
   const { phase } = useEvalCycleStore()
-  const { getEntry, submitEntry } = useNominationStore()
+  const { getEntry, submitEntry, getPendingApprovalsFor, respondToNomination } = useNominationStore()
 
   const myEntry = user ? getEntry(user.id) : undefined
+  const pendingApprovals = user ? getPendingApprovalsFor(user.id) : []
 
   // 초기 선택: 기존 제출 데이터에서
   const [selected, setSelected] = useState<{ id: string; group: NominationGroup }[]>(
@@ -42,6 +48,9 @@ export default function NominationPage() {
   const teammates = selected.filter((s) => s.group === 'TEAMMATE')
   const collabs   = selected.filter((s) => s.group === 'COLLAB')
   const total     = selected.length
+  const collabRequired = minCollabRequired(total)
+  const collabOk  = collabs.length >= collabRequired
+  const canSubmit = total >= MIN_TOTAL && total <= MAX_TOTAL && collabOk
 
   function toggle(userId: string, group: NominationGroup) {
     if (submitted) return
@@ -56,7 +65,7 @@ export default function NominationPage() {
   }
 
   function handleSubmit() {
-    if (!user) return
+    if (!user || !canSubmit) return
     submitEntry(user.id, selected.map((s) => ({ userId: s.id, group: s.group })))
     setSubmitted(true)
   }
@@ -73,6 +82,15 @@ export default function NominationPage() {
     <>
       <Topbar title="동료 추천" subtitle={`${total}/${MAX_TOTAL}명 선택`} />
       <div className="flex-1 overflow-y-auto p-7 space-y-5 max-w-2xl">
+
+        {/* 나를 지정한 동료 요청 — 승인/거절 */}
+        {pendingApprovals.length > 0 && (
+          <PendingApprovalsCard
+            approvals={pendingApprovals}
+            allEmployees={allEmployees}
+            onRespond={(nominatorId, approval) => user && respondToNomination(nominatorId, user.id, approval)}
+          />
+        )}
 
         {/* 평가 유형 안내 */}
         <EvalTypeGuide />
@@ -98,7 +116,7 @@ export default function NominationPage() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-[#0D1B2A]">HR 검토 대기 중</p>
               <p className="text-xs text-[#4A5568] mt-0.5">
-                추천이 제출되었습니다. HR 담당자가 검토 후 최종 7명을 확정합니다.
+                추천이 제출되었습니다. 지정된 동료의 승인과 HR 담당자 검토 후 최종 확정됩니다.
               </p>
               <button onClick={() => setSubmitted(false)} className="mt-2 text-xs text-blue-500 hover:underline">
                 수정하기
@@ -123,12 +141,20 @@ export default function NominationPage() {
             {selected.map(({ id, group }) => {
               const emp = allEmployees.find((e) => e.id === id)
               if (!emp) return null
+              const approval = myEntry?.nominees.find((n) => n.userId === id)?.approval
+              const approvalLabel = approval === 'APPROVED' ? '승인됨' : approval === 'DECLINED' ? '거절됨' : submitted ? '승인 대기' : null
               return (
                 <span key={id} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
                   group === 'TEAMMATE' ? 'bg-mint-50 border-mint-200 text-mint-700' : 'bg-purple-50 border-purple-200 text-purple-700'
                 }`}>
                   {emp.name}
                   <span className="opacity-50 text-[10px]">{group === 'TEAMMATE' ? '팀원' : '협업'}</span>
+                  {approvalLabel && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      approval === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                      approval === 'DECLINED' ? 'bg-red-100 text-red-700' : 'bg-white/60 text-amber-700'
+                    }`}>{approvalLabel}</span>
+                  )}
                   {!submitted && (
                     <button onClick={() => toggle(id, group)} className="hover:opacity-70 font-bold leading-none ml-0.5">×</button>
                   )}
@@ -139,19 +165,27 @@ export default function NominationPage() {
           </div>
 
           {/* 진행 바 */}
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
             <div className="h-full bg-mint-500 rounded-full transition-all" style={{ width: `${(total / MAX_TOTAL) * 100}%` }} />
           </div>
+
+          {!submitted && total > 0 && !collabOk && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              타부서(협업) 동료는 전체의 50% 이상이어야 합니다 — 현재 {collabs.length}/{total}명, 최소 {collabRequired}명 필요
+            </p>
+          )}
 
           {!submitted && (
             <button
               onClick={handleSubmit}
-              disabled={total < MIN_TOTAL}
+              disabled={!canSubmit}
               className="w-full h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-mint-600 transition-colors"
             >
               {total < MIN_TOTAL
                 ? `최소 ${MIN_TOTAL}명 이상 선택하세요 (${total}/${MIN_TOTAL})`
-                : `추천 제출 — ${total}명 선택됨`}
+                : !collabOk
+                  ? `타부서 동료를 ${collabRequired - collabs.length}명 더 선택하세요`
+                  : `추천 제출 — ${total}명 선택됨`}
             </button>
           )}
         </div>
@@ -240,7 +274,7 @@ function ConfirmedView({ entry, allEmployees }: {
         <div className="bg-white rounded-2xl shadow-card p-5">
           <h3 className="font-semibold text-[#0D1B2A] mb-4">확정된 평가 대상 ({entry.nominees.length}명)</h3>
           <div className="space-y-2">
-            {entry.nominees.map(({ userId, group }) => {
+            {entry.nominees.map(({ userId, group, approval }) => {
               const emp = allEmployees.find((e) => e.id === userId)
               if (!emp) return null
               return (
@@ -252,6 +286,12 @@ function ConfirmedView({ entry, allEmployees }: {
                     <p className="text-sm font-medium text-[#0D1B2A]">{emp.name}</p>
                     <p className="text-xs text-[#8896A8]">{emp.jobTitle} · {emp.team?.name}</p>
                   </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    approval === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                    approval === 'DECLINED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {approval === 'APPROVED' ? '승인됨' : approval === 'DECLINED' ? '거절됨' : '승인 대기'}
+                  </span>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                     group === 'TEAMMATE' ? 'bg-mint-50 border-mint-200 text-mint-700' : 'bg-purple-50 border-purple-200 text-purple-700'
                   }`}>
@@ -268,6 +308,45 @@ function ConfirmedView({ entry, allEmployees }: {
         </div>
       </div>
     </>
+  )
+}
+
+// ─── 나를 지정한 동료 요청 (승인/거절) ────────────
+function PendingApprovalsCard({ approvals, allEmployees, onRespond }: {
+  approvals: { nominatorId: string; group: NominationGroup }[]
+  allEmployees: User[]
+  onRespond: (nominatorId: string, approval: 'APPROVED' | 'DECLINED') => void
+}) {
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+      <h3 className="font-semibold text-amber-800 text-sm mb-1">나를 동료로 지정한 요청 ({approvals.length}건)</h3>
+      <p className="text-xs text-amber-700 mb-3">아래 동료가 나를 다면평가 대상으로 지정했습니다. 평가받는 것에 동의하는지 확인해주세요.</p>
+      <div className="space-y-2">
+        {approvals.map(({ nominatorId, group }) => {
+          const nominator = allEmployees.find((e) => e.id === nominatorId)
+          if (!nominator) return null
+          return (
+            <div key={nominatorId} className="flex items-center gap-3 bg-white border border-amber-100 rounded-xl p-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {nominator.name.slice(0, 2)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[#0D1B2A]">{nominator.name}</p>
+                <p className="text-xs text-[#8896A8]">{nominator.jobTitle} · {nominator.team?.name} · {group === 'TEAMMATE' ? '같은 팀' : '협업 부서'} 동료로 지정</p>
+              </div>
+              <button
+                onClick={() => onRespond(nominatorId, 'DECLINED')}
+                className="text-xs font-semibold text-[#8896A8] hover:text-red-500 border border-[#DDE3EE] px-3 py-1.5 rounded-lg transition-colors"
+              >거절</button>
+              <button
+                onClick={() => onRespond(nominatorId, 'APPROVED')}
+                className="text-xs font-semibold text-white bg-mint-500 hover:bg-mint-600 px-3 py-1.5 rounded-lg transition-colors"
+              >승인</button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -326,7 +405,7 @@ function EvalTypeGuide() {
           ))}
 
           <div className="rounded-xl bg-[#F0F4FA] p-3 text-xs text-[#4A5568]">
-            <strong>동료 추천 규칙:</strong> 같은 팀원 최대 4명 + 협업 부서 최대 4명, 총 3~7명을 추천하세요. HR 담당자가 최종 확인 후 평가가 시작됩니다.
+            <strong>동료 추천 규칙:</strong> 총 5~7명을 추천하며, 이 중 <strong>타부서(협업) 동료가 50% 이상</strong>이어야 합니다 (같은 팀원·협업 부서 각 최대 4명). 지정된 동료 본인이 승인해야 하며, HR 담당자가 최종 확인 후 평가가 시작됩니다.
           </div>
         </div>
       )}
