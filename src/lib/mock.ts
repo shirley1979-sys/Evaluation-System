@@ -7,10 +7,10 @@ import type {
 // 팀
 // ──────────────────────────────────────────────
 export const MOCK_TEAMS: Team[] = [
-  { id: 't1', name: 'Maker 1 Motion Insight', managerId: 'u2' },
-  { id: 't2', name: 'Global Platform',         managerId: 'u7' },
-  { id: 't3', name: 'Design Studio',           managerId: 'u11' },
-  { id: 't4', name: 'Data Intelligence',       managerId: 'u14' },
+  { id: 't1', name: 'Maker 1 Motion Insight', managerId: 'u2',  division: null },
+  { id: 't2', name: 'Global Platform',         managerId: 'u7',  division: null },
+  { id: 't3', name: 'Design Studio',           managerId: 'u11', division: null },
+  { id: 't4', name: 'Data Intelligence',       managerId: 'u14', division: null },
 ]
 
 // ──────────────────────────────────────────────
@@ -69,37 +69,37 @@ export const MOCK_CYCLE: EvalCycle = {
 // ──────────────────────────────────────────────
 export const MOCK_QUESTIONS: Question[] = [
   // 공통 (7)
-  { id: 'c1', type: 'COMMON', category: '업무 성과', text: '담당 업무의 산출물이 목표한 품질과 기한을 충족하고 있다', description: null, anchor1: '기한·품질 모두 미달', anchor3: '기한 준수, 품질 보통', anchor5: '기한 준수, 품질 탁월', order: 1, isActive: true },
-  { id: 'c2', type: 'COMMON', category: '업무 성과', text: '맡은 업무의 범위와 복잡도에 비해 높은 생산성을 발휘한다', description: null, anchor1: '기대 이하', anchor3: '기대 수준', anchor5: '기대 이상', order: 2, isActive: true },
-  { id: 'c3', type: 'COMMON', category: '협업/소통', text: '동료와의 소통이 명확하고 협업에 긍정적인 영향을 준다', description: null, anchor1: '소통 부족', anchor3: '보통', anchor5: '탁월한 소통', order: 3, isActive: true },
-  { id: 'c4', type: 'COMMON', category: '협업/소통', text: '갈등 상황에서 건설적으로 문제를 해결하려고 노력한다', description: null, anchor1: '회피/악화', anchor3: '보통', anchor5: '적극 해결', order: 4, isActive: true },
-  { id: 'c5', type: 'COMMON', category: '성장/학습', text: '새로운 기술이나 방법을 빠르게 습득하고 업무에 적용한다', description: null, anchor1: '변화 거부', anchor3: '보통', anchor5: '선도적 학습', order: 5, isActive: true },
-  { id: 'c6', type: 'COMMON', category: '성장/학습', text: '피드백을 열린 자세로 수용하고 개선하려는 모습을 보인다', description: null, anchor1: '방어적', anchor3: '보통', anchor5: '적극 수용', order: 6, isActive: true },
-  { id: 'c7', type: 'COMMON', category: '주도성', text: '지시 없이도 필요한 일을 스스로 찾아 실행한다', description: null, anchor1: '지시 의존', anchor3: '보통', anchor5: '완전 자기주도', order: 7, isActive: true },
-  // 하향 (5)
-  { id: 'm1', type: 'DOWNWARD', category: '리더십', text: '팀원의 성장을 위한 코칭과 피드백을 꾸준히 제공한다', description: null, anchor1: '피드백 없음', anchor3: '가끔 제공', anchor5: '정기적·효과적', order: 1, isActive: true },
-  { id: 'm2', type: 'DOWNWARD', category: '리더십', text: '팀 목표를 명확히 설정하고 방향을 제시한다', description: null, anchor1: '방향 부재', anchor3: '보통', anchor5: '명확한 비전', order: 2, isActive: true },
-  { id: 'm3', type: 'DOWNWARD', category: '의사결정', text: '데이터와 논리를 근거로 합리적인 의사결정을 내린다', description: null, anchor1: '감에 의존', anchor3: '보통', anchor5: '체계적 결정', order: 3, isActive: true },
-  { id: 'm4', type: 'DOWNWARD', category: '팀 운영', text: '팀원 각자의 강점을 파악하고 적절히 업무를 배분한다', description: null, anchor1: '획일적 배분', anchor3: '보통', anchor5: '최적 배분', order: 4, isActive: true },
-  { id: 'm5', type: 'DOWNWARD', category: '팀 운영', text: '어려움에 처한 팀원을 발견하고 지원을 아끼지 않는다', description: null, anchor1: '무관심', anchor3: '필요 시 지원', anchor5: '선제적 지원', order: 5, isActive: true },
-  // 상향 (5)
-  { id: 'u1', type: 'UPWARD', category: '심리적 안전', text: '의견을 자유롭게 표현할 수 있는 환경을 만들어준다', description: null, anchor1: '눈치 봄', anchor3: '보통', anchor5: '완전히 자유', order: 1, isActive: true },
-  { id: 'u2', type: 'UPWARD', category: '심리적 안전', text: '팀원의 실수를 성장의 기회로 보고 비난하지 않는다', description: null, anchor1: '비난·비판', anchor3: '보통', anchor5: '성장 중심', order: 2, isActive: true },
-  { id: 'u3', type: 'UPWARD', category: '지원', text: '필요한 자원과 정보를 적시에 제공한다', description: null, anchor1: '정보 부족', anchor3: '보통', anchor5: '충분한 지원', order: 3, isActive: true },
-  { id: 'u4', type: 'UPWARD', category: '공정성', text: '팀원을 공정하게 평가하고 기회를 균등하게 부여한다', description: null, anchor1: '편향됨', anchor3: '보통', anchor5: '매우 공정', order: 4, isActive: true },
-  { id: 'u5', type: 'UPWARD', category: '커뮤니케이션', text: '팀과 조직의 방향을 투명하게 공유한다', description: null, anchor1: '불투명', anchor3: '보통', anchor5: '완전 투명', order: 5, isActive: true },
-  // 동료 (5)
-  { id: 'p1', type: 'PEER', category: '신뢰', text: '약속한 것을 기한 내에 완수하여 신뢰를 쌓는다', description: null, anchor1: '자주 미이행', anchor3: '보통', anchor5: '항상 이행', order: 1, isActive: true },
-  { id: 'p2', type: 'PEER', category: '신뢰', text: '어려운 상황에서도 팀을 위해 책임을 다한다', description: null, anchor1: '회피', anchor3: '보통', anchor5: '책임 완수', order: 2, isActive: true },
-  { id: 'p3', type: 'PEER', category: '기여', text: '팀의 공동 목표 달성에 적극적으로 기여한다', description: null, anchor1: '개인 중심', anchor3: '보통', anchor5: '팀 최우선', order: 3, isActive: true },
-  { id: 'p4', type: 'PEER', category: '기여', text: '업무 외 시간에도 동료를 기꺼이 돕는다', description: null, anchor1: '비협조적', anchor3: '요청 시 도움', anchor5: '자발적 지원', order: 4, isActive: true },
-  { id: 'p5', type: 'PEER', category: '전문성 공유', text: '본인의 전문 지식을 팀과 적극적으로 공유한다', description: null, anchor1: '공유 없음', anchor3: '요청 시 공유', anchor5: '자발적 공유', order: 5, isActive: true },
+  { id: 'c1', type: 'COMMON', category: '업무 성과', text: '담당 업무의 산출물이 목표한 품질과 기한을 충족하고 있다', description: '개발팀의 스프린트 산출물, 제품기획팀의 기획서, 의학전략팀의 임상·RA 문서 등 본인이 맡은 업무 결과물이 약속된 일정과 품질 기준(리뷰 통과, 재작업 최소화 등)을 실제로 충족했는지를 기준으로 평가하세요.', anchor1: '기한·품질 모두 미달', anchor3: '기한 준수, 품질 보통', anchor5: '기한 준수, 품질 탁월', order: 1, isActive: true },
+  { id: 'c2', type: 'COMMON', category: '업무 성과', text: '맡은 업무의 범위와 복잡도에 비해 높은 생산성을 발휘한다', description: '단순히 시간을 많이 썼는지가 아니라, 업무의 난이도·범위 대비 처리한 양과 효율을 봅니다. 예: 제한된 리소스로 여러 프로젝트를 동시에 소화했는지, 반복 작업을 자동화·개선했는지 등.', anchor1: '기대 이하', anchor3: '기대 수준', anchor5: '기대 이상', order: 2, isActive: true },
+  { id: 'c3', type: 'COMMON', category: '협업/소통', text: '동료와의 소통이 명확하고 협업에 긍정적인 영향을 준다', description: '개발-제품기획-의학전략처럼 서로 다른 부문 간 정보 전달이 정확했는지, 회의나 문서에서 요점을 명확히 전달해 오해나 재작업을 줄였는지를 살펴보세요.', anchor1: '소통 부족', anchor3: '보통', anchor5: '탁월한 소통', order: 3, isActive: true },
+  { id: 'c4', type: 'COMMON', category: '협업/소통', text: '갈등 상황에서 건설적으로 문제를 해결하려고 노력한다', description: '일정 충돌, 우선순위 이견, 책임 소재 등 실제 갈등이 생겼을 때 감정적으로 대응하기보다 문제 해결에 집중했는지를 구체적 사례 중심으로 판단하세요.', anchor1: '회피/악화', anchor3: '보통', anchor5: '적극 해결', order: 4, isActive: true },
+  { id: 'c5', type: 'COMMON', category: '성장/학습', text: '새로운 기술이나 방법을 빠르게 습득하고 업무에 적용한다', description: '새로운 툴, 규제 기준, 업무 프로세스가 도입되었을 때 얼마나 빠르게 익히고 실제 업무(개발·기획·임상 등)에 적용했는지를 평가합니다.', anchor1: '변화 거부', anchor3: '보통', anchor5: '선도적 학습', order: 5, isActive: true },
+  { id: 'c6', type: 'COMMON', category: '성장/학습', text: '피드백을 열린 자세로 수용하고 개선하려는 모습을 보인다', description: '코드 리뷰, 기획 리뷰, 임상·품질 검토 등에서 받은 지적을 방어적으로 받아들이지 않고 실제 개선으로 이어갔는지를 기준으로 하세요.', anchor1: '방어적', anchor3: '보통', anchor5: '적극 수용', order: 6, isActive: true },
+  { id: 'c7', type: 'COMMON', category: '주도성', text: '지시 없이도 필요한 일을 스스로 찾아 실행한다', description: '누가 시키지 않아도 문제나 개선 지점을 먼저 발견해 제안·실행했는지를 봅니다. 반복 업무를 그대로 따르기만 했다면 낮게, 프로세스 개선을 주도했다면 높게 평가하세요.', anchor1: '지시 의존', anchor3: '보통', anchor5: '완전 자기주도', order: 7, isActive: true },
+  // 하향 (5) — 팀장이 팀원을 평가
+  { id: 'm1', type: 'DOWNWARD', category: '리더십', text: '팀원의 성장을 위한 코칭과 피드백을 꾸준히 제공한다', description: '1:1 미팅이나 월별 피드백 등을 통해 구체적이고 실행 가능한 피드백을 정기적으로 제공했는지를 기준으로 평가하세요. 형식적인 통보가 아니라 성장에 실질적으로 도움이 되었는지가 핵심입니다.', anchor1: '피드백 없음', anchor3: '가끔 제공', anchor5: '정기적·효과적', order: 1, isActive: true },
+  { id: 'm2', type: 'DOWNWARD', category: '리더십', text: '팀 목표를 명확히 설정하고 방향을 제시한다', description: '팀의 분기·연간 목표(제품 로드맵, 임상 일정 등)를 팀원들이 이해하고 공감할 수 있게 명확히 전달했는지를 봅니다.', anchor1: '방향 부재', anchor3: '보통', anchor5: '명확한 비전', order: 2, isActive: true },
+  { id: 'm3', type: 'DOWNWARD', category: '의사결정', text: '데이터와 논리를 근거로 합리적인 의사결정을 내린다', description: '제품 우선순위, 리소스 배분, 일정 조정 등의 의사결정 시 근거(데이터, 사용자 피드백, 리스크 분석 등)를 바탕으로 판단했는지를 평가하세요.', anchor1: '감에 의존', anchor3: '보통', anchor5: '체계적 결정', order: 3, isActive: true },
+  { id: 'm4', type: 'DOWNWARD', category: '팀 운영', text: '팀원 각자의 강점을 파악하고 적절히 업무를 배분한다', description: '팀원의 역량과 관심사를 고려해 업무를 배분했는지, 특정 인원에게 부담이 쏠리지 않도록 조율했는지를 봅니다.', anchor1: '획일적 배분', anchor3: '보통', anchor5: '최적 배분', order: 4, isActive: true },
+  { id: 'm5', type: 'DOWNWARD', category: '팀 운영', text: '어려움에 처한 팀원을 발견하고 지원을 아끼지 않는다', description: '업무 과부하, 번아웃 징후, 개인적 어려움 등을 먼저 알아채고 실질적으로 도움을 준 사례가 있었는지를 기준으로 하세요.', anchor1: '무관심', anchor3: '필요 시 지원', anchor5: '선제적 지원', order: 5, isActive: true },
+  // 상향 (5) — 팀원이 팀장을 평가, 완전 익명
+  { id: 'u1', type: 'UPWARD', category: '심리적 안전', text: '의견을 자유롭게 표현할 수 있는 환경을 만들어준다', description: '반대 의견이나 우려사항을 말했을 때 불이익 없이 자유롭게 표현할 수 있었는지를 솔직하게 평가하세요. 완전 익명으로 처리됩니다.', anchor1: '눈치 봄', anchor3: '보통', anchor5: '완전히 자유', order: 1, isActive: true },
+  { id: 'u2', type: 'UPWARD', category: '심리적 안전', text: '팀원의 실수를 성장의 기회로 보고 비난하지 않는다', description: '업무 중 실수나 실패가 있었을 때 원인 파악과 재발 방지에 집중했는지, 개인을 비난하는 방식이었는지를 봅니다.', anchor1: '비난·비판', anchor3: '보통', anchor5: '성장 중심', order: 2, isActive: true },
+  { id: 'u3', type: 'UPWARD', category: '지원', text: '필요한 자원과 정보를 적시에 제공한다', description: '업무에 필요한 예산, 인력, 정보, 의사결정 권한 등을 요청했을 때 시기적절하게 지원받았는지를 평가하세요.', anchor1: '정보 부족', anchor3: '보통', anchor5: '충분한 지원', order: 3, isActive: true },
+  { id: 'u4', type: 'UPWARD', category: '공정성', text: '팀원을 공정하게 평가하고 기회를 균등하게 부여한다', description: '평가, 승진 추천, 주요 프로젝트 배정 등에서 특정 인원에게 편향되지 않고 공정한 기준이 적용되었는지를 봅니다.', anchor1: '편향됨', anchor3: '보통', anchor5: '매우 공정', order: 4, isActive: true },
+  { id: 'u5', type: 'UPWARD', category: '커뮤니케이션', text: '팀과 조직의 방향을 투명하게 공유한다', description: '회사·부문의 주요 결정사항(조직개편, 사업 방향 등)을 팀원들에게 얼마나 투명하게, 시기적절하게 공유했는지를 평가하세요.', anchor1: '불투명', anchor3: '보통', anchor5: '완전 투명', order: 5, isActive: true },
+  // 동료 (5) — 익명, 응답자 2명 이상 시 코멘트 공개
+  { id: 'p1', type: 'PEER', category: '신뢰', text: '약속한 것을 기한 내에 완수하여 신뢰를 쌓는다', description: '함께 작업하며 합의한 마감일이나 담당 범위를 실제로 지켰는지, 지키지 못할 경우 사전에 알렸는지를 기준으로 평가하세요.', anchor1: '자주 미이행', anchor3: '보통', anchor5: '항상 이행', order: 1, isActive: true },
+  { id: 'p2', type: 'PEER', category: '신뢰', text: '어려운 상황에서도 팀을 위해 책임을 다한다', description: '일정이 촉박하거나 문제가 발생했을 때 회피하지 않고 끝까지 책임지는 모습을 보였는지를 봅니다.', anchor1: '회피', anchor3: '보통', anchor5: '책임 완수', order: 2, isActive: true },
+  { id: 'p3', type: 'PEER', category: '기여', text: '팀의 공동 목표 달성에 적극적으로 기여한다', description: '개인 성과뿐 아니라 팀 전체 목표(출시 일정, 품질 지표 등)를 위해 자신의 역할 이상으로 기여했는지를 평가하세요.', anchor1: '개인 중심', anchor3: '보통', anchor5: '팀 최우선', order: 3, isActive: true },
+  { id: 'p4', type: 'PEER', category: '기여', text: '업무 외 시간에도 동료를 기꺼이 돕는다', description: '본인 업무가 아니어도 동료가 어려움을 겪을 때 자발적으로 도움을 준 경험이 있었는지를 기준으로 하세요.', anchor1: '비협조적', anchor3: '요청 시 도움', anchor5: '자발적 지원', order: 4, isActive: true },
+  { id: 'p5', type: 'PEER', category: '전문성 공유', text: '본인의 전문 지식을 팀과 적극적으로 공유한다', description: '개발 노하우, 임상·규제 지식, 기획 인사이트 등 본인만 아는 정보를 문서화하거나 공유해 팀 전체의 역량을 높였는지를 봅니다.', anchor1: '공유 없음', anchor3: '요청 시 공유', anchor5: '자발적 공유', order: 5, isActive: true },
   // 셀프 (5)
-  { id: 's1', type: 'SELF', category: '자기 인식', text: '나의 강점과 약점을 명확히 파악하고 있다', description: null, anchor1: '인식 부족', anchor3: '보통', anchor5: '매우 명확', order: 1, isActive: true },
-  { id: 's2', type: 'SELF', category: '자기 인식', text: '일과 삶의 균형을 적절히 유지하고 있다', description: null, anchor1: '심각한 불균형', anchor3: '보통', anchor5: '잘 유지', order: 2, isActive: true },
-  { id: 's3', type: 'SELF', category: '목표 관리', text: '분기 목표를 구체적으로 설정하고 실행한다', description: null, anchor1: '목표 없음', anchor3: '보통', anchor5: '체계적 관리', order: 3, isActive: true },
-  { id: 's4', type: 'SELF', category: '목표 관리', text: '업무 우선순위를 효과적으로 관리한다', description: null, anchor1: '우선순위 혼란', anchor3: '보통', anchor5: '완벽한 관리', order: 4, isActive: true },
-  { id: 's5', type: 'SELF', category: '성장', text: '올해 목표했던 역량 개발을 충분히 이루었다', description: null, anchor1: '거의 없음', anchor3: '보통', anchor5: '완전 달성', order: 5, isActive: true },
+  { id: 's1', type: 'SELF', category: '자기 인식', text: '나의 강점과 약점을 명확히 파악하고 있다', description: '올해 업무를 돌아봤을 때, 본인이 잘하는 부분과 부족한 부분을 구체적인 사례를 들어 설명할 수 있는 정도를 스스로 평가하세요.', anchor1: '인식 부족', anchor3: '보통', anchor5: '매우 명확', order: 1, isActive: true },
+  { id: 's2', type: 'SELF', category: '자기 인식', text: '일과 삶의 균형을 적절히 유지하고 있다', description: '지속 가능한 페이스로 일하고 있는지, 번아웃 없이 올해를 보냈는지를 솔직하게 돌아보세요.', anchor1: '심각한 불균형', anchor3: '보통', anchor5: '잘 유지', order: 2, isActive: true },
+  { id: 's3', type: 'SELF', category: '목표 관리', text: '분기 목표를 구체적으로 설정하고 실행한다', description: '연초·분기 초에 세운 목표가 얼마나 구체적이었고, 실제로 어느 정도까지 실행에 옮겼는지를 평가하세요.', anchor1: '목표 없음', anchor3: '보통', anchor5: '체계적 관리', order: 3, isActive: true },
+  { id: 's4', type: 'SELF', category: '목표 관리', text: '업무 우선순위를 효과적으로 관리한다', description: '여러 프로젝트나 요청이 겹쳤을 때 무엇을 먼저 처리할지 스스로 판단하고 조율할 수 있었는지를 봅니다.', anchor1: '우선순위 혼란', anchor3: '보통', anchor5: '완벽한 관리', order: 4, isActive: true },
+  { id: 's5', type: 'SELF', category: '성장', text: '올해 목표했던 역량 개발을 충분히 이루었다', description: '연초에 계획했던 학습·역량 개발 목표(신규 기술 습득, 자격, 프로젝트 경험 등)를 실제로 얼마나 달성했는지 돌아보세요.', anchor1: '거의 없음', anchor3: '보통', anchor5: '완전 달성', order: 5, isActive: true },
 ]
 
 // ──────────────────────────────────────────────

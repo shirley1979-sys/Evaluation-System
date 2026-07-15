@@ -2,10 +2,12 @@
 
 import { useState, useRef } from 'react'
 import Topbar from '@/components/layout/Topbar'
-import { useEmployeeStore, type UploadRow } from '@/store/employees'
+import { useEmployeeStore, type UploadRow, type OrgUpdateRow } from '@/store/employees'
 import { MOCK_USERS } from '@/lib/mock'
 import type { Role } from '@/types'
 import * as XLSX from 'xlsx'
+
+type UploadMode = 'base' | 'org'
 
 const ROLE_LABEL: Record<string, string> = {
   MEMBER: '팀원', MANAGER: '팀장', EXECUTIVE: '임원', HR_ADMIN: 'HR', SUPER_ADMIN: '슈퍼관리자',
@@ -21,30 +23,39 @@ const ROLE_COLOR: Record<string, string> = {
 const ALL_ROLES: Role[] = ['MEMBER', 'MANAGER', 'EXECUTIVE', 'HR_ADMIN', 'SUPER_ADMIN']
 
 export default function HREmployeesPage() {
-  const { employees, hasUploaded, setFromUpload, resetToMock, removeEmployee, updateRole } = useEmployeeStore()
+  const { employees, hasUploaded, setFromUpload, applyOrgUpdate, resetToMock, removeEmployee, updateRole } = useEmployeeStore()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [mode, setMode] = useState<UploadMode>('base')
   const [preview, setPreview] = useState<UploadRow[] | null>(null)
+  const [orgPreview, setOrgPreview] = useState<OrgUpdateRow[] | null>(null)
   const [fileName, setFileName] = useState('')
   const [search, setSearch] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const [orgResult, setOrgResult] = useState<{ matched: number; unmatched: string[] } | null>(null)
 
+  // 직원명단 업로드: 이름·닉네임·팀명·부문(또는 실)·직무·직책(=역할)·이메일·주민번호앞자리·입사일
   function downloadTemplate() {
-    const headers = ['이름', '영문명', '이메일', '주민번호앞6자리', '팀명', '직책', '역할(팀원/팀장/임원/HR/슈퍼관리자)', '팀장이메일']
+    const headers = ['이름', '닉네임', '팀명', '부문 또는 실', '직무', '직책(팀원/팀장/임원/HR/슈퍼관리자)', '이메일', '주민번호 앞자리', '입사일(YYYY-MM-DD)']
     const mockRows = MOCK_USERS.map((u) => [
-      u.name,
-      u.nameEng ?? '',
-      u.email,
-      '900101',
-      u.team?.name ?? '',
-      u.jobTitle ?? '',
-      ROLE_LABEL[u.role] ?? u.role,
-      u.managerEmail ?? '',
+      u.name, u.nickname ?? '', u.team?.name ?? '', u.team?.division ?? '', u.jobDuty ?? '',
+      ROLE_LABEL[u.role] ?? u.role, u.email, '900101', u.hireDate ?? '',
     ])
     const ws = XLSX.utils.aoa_to_sheet([headers, ...mockRows])
-    ws['!cols'] = [12, 16, 24, 14, 20, 16, 22, 24].map((wch) => ({ wch }))
+    ws['!cols'] = [12, 12, 16, 16, 16, 26, 24, 14, 16].map((wch) => ({ wch }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '직원목록')
     XLSX.writeFile(wb, 'EverEx_직원명단_템플릿.xlsx')
+  }
+
+  // 2차: 조직 정보만 업데이트 (이메일로 매칭) — 팀/부문 이동, 조직개편 반영 시 사용
+  function downloadOrgTemplate() {
+    const headers = ['이메일', '팀명', '부문 또는 실', '직무', '직책(팀원/팀장/임원/HR/슈퍼관리자)']
+    const mockRows = MOCK_USERS.map((u) => [u.email, u.team?.name ?? '', u.team?.division ?? '', u.jobDuty ?? '', ROLE_LABEL[u.role] ?? u.role])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...mockRows])
+    ws['!cols'] = [24, 16, 16, 16, 26].map((wch) => ({ wch }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '조직정보')
+    XLSX.writeFile(wb, 'EverEx_조직정보_업데이트_템플릿.xlsx')
   }
 
   function handleFile(file: File) {
@@ -53,34 +64,58 @@ export default function HREmployeesPage() {
       return
     }
     setFileName(file.name)
+    setOrgResult(null)
     const reader = new FileReader()
     reader.onload = (e) => {
       const wb = XLSX.read(e.target?.result, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][]
       const [, ...dataRows] = rows
-      const parsed: UploadRow[] = dataRows
-        .filter((r) => r[2]) // 이메일 있는 행만
-        .map((r) => ({
-          name:         String(r[0] ?? ''),
-          nameEng:      r[1] ? String(r[1]) : undefined,
-          email:        String(r[2] ?? ''),
-          ssnPrefix:    String(r[3] ?? ''),
-          team:         String(r[4] ?? ''),
-          jobTitle:     r[5] ? String(r[5]) : undefined,
-          role:         String(r[6] ?? '직원'),
-          managerEmail: r[7] ? String(r[7]) : undefined,
-        }))
-      setPreview(parsed)
+
+      if (mode === 'base') {
+        const parsed: UploadRow[] = dataRows
+          .filter((r) => r[6]) // 이메일 있는 행만
+          .map((r) => ({
+            name:      String(r[0] ?? ''),
+            nickname:  r[1] ? String(r[1]) : undefined,
+            team:      String(r[2] ?? ''),
+            division:  r[3] ? String(r[3]) : undefined,
+            jobDuty:   r[4] ? String(r[4]) : undefined,
+            role:      String(r[5] ?? '팀원'),
+            email:     String(r[6] ?? ''),
+            ssnPrefix: String(r[7] ?? ''),
+            hireDate:  r[8] ? String(r[8]) : undefined,
+          }))
+        setPreview(parsed)
+        setOrgPreview(null)
+      } else {
+        const parsed: OrgUpdateRow[] = dataRows
+          .filter((r) => r[0]) // 이메일 있는 행만
+          .map((r) => ({
+            email:    String(r[0] ?? ''),
+            team:     r[1] ? String(r[1]) : undefined,
+            division: r[2] ? String(r[2]) : undefined,
+            jobDuty:  r[3] ? String(r[3]) : undefined,
+            role:     r[4] ? String(r[4]) : undefined,
+          }))
+        setOrgPreview(parsed)
+        setPreview(null)
+      }
     }
     reader.readAsArrayBuffer(file)
   }
 
   function confirmUpload() {
-    if (!preview) return
-    setFromUpload(preview)
-    setPreview(null)
-    setFileName('')
+    if (preview) {
+      setFromUpload(preview)
+      setPreview(null)
+      setFileName('')
+    } else if (orgPreview) {
+      const result = applyOrgUpdate(orgPreview)
+      setOrgResult(result)
+      setOrgPreview(null)
+      setFileName('')
+    }
   }
 
   const filtered = employees.filter(
@@ -97,7 +132,9 @@ export default function HREmployeesPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold text-[#192628]">Excel 직원 명단 업로드</h3>
-              <p className="text-xs text-[#8896A8] mt-0.5">이름·이메일·팀·직책·역할·주민번호 앞 6자리 포함</p>
+              <p className="text-xs text-[#8896A8] mt-0.5">
+                {mode === 'base' ? '이름·닉네임·팀명·부문(또는 실)·직무·직책·이메일·주민번호 앞자리·입사일' : '이메일로 기존 직원을 매칭해 팀·부문·직무·직책만 갱신'}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               {hasUploaded && (
@@ -109,7 +146,7 @@ export default function HREmployeesPage() {
                 </button>
               )}
               <button
-                onClick={downloadTemplate}
+                onClick={mode === 'base' ? downloadTemplate : downloadOrgTemplate}
                 className="flex items-center gap-1.5 text-xs text-mint-600 hover:text-mint-700 font-medium border border-mint-200 bg-mint-50 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -121,6 +158,31 @@ export default function HREmployeesPage() {
               </button>
             </div>
           </div>
+
+          {/* 업로드 모드 전환 */}
+          <div className="flex gap-1 bg-[#F0F4FA] rounded-xl p-1 mb-4 w-fit">
+            {(['base', 'org'] as UploadMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setPreview(null); setOrgPreview(null); setFileName(''); setOrgResult(null) }}
+                className={`text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-colors ${
+                  mode === m ? 'bg-white text-[#192628] shadow-sm' : 'text-[#8896A8]'
+                }`}
+              >
+                {m === 'base' ? '1차 · 기본 명단' : '2차 · 조직정보 업데이트'}
+              </button>
+            ))}
+          </div>
+
+          {orgResult && (
+            <div className="mb-4 flex items-center gap-2 text-sm bg-mint-50 border border-mint-200 rounded-xl px-4 py-2.5 text-mint-700">
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+              {orgResult.matched}명의 조직정보를 갱신했습니다
+              {orgResult.unmatched.length > 0 && (
+                <span className="text-amber-600"> · 매칭 안 됨: {orgResult.unmatched.join(', ')}</span>
+              )}
+            </div>
+          )}
 
           {/* 드래그 앤 드롭 영역 */}
           <div
@@ -188,7 +250,7 @@ export default function HREmployeesPage() {
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-[#F0F4FA]">
-                      {['이름', '이메일', '팀', '직책', '역할'].map((h) => (
+                      {['이름', '닉네임', '팀', '부문/실', '직무', '직책', '이메일', '입사일'].map((h) => (
                         <th key={h} className="px-4 py-2.5 text-left font-semibold text-[#4A5568]">{h}</th>
                       ))}
                     </tr>
@@ -197,20 +259,73 @@ export default function HREmployeesPage() {
                     {preview.slice(0, 15).map((r, i) => (
                       <tr key={i} className="border-t border-[#DDE3EE]">
                         <td className="px-4 py-2.5 font-medium text-[#192628]">{r.name}</td>
-                        <td className="px-4 py-2.5 text-[#4A5568]">{r.email}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.nickname || '-'}</td>
                         <td className="px-4 py-2.5 text-[#4A5568]">{r.team || '-'}</td>
-                        <td className="px-4 py-2.5 text-[#4A5568]">{r.jobTitle || '-'}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.division || '-'}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.jobDuty || '-'}</td>
                         <td className="px-4 py-2.5">
                           <span className="bg-mint-50 text-mint-700 border border-mint-200 text-[10px] font-medium px-2 py-0.5 rounded-full">
                             {r.role}
                           </span>
                         </td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.email}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.hireDate || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {preview.length > 15 && (
                   <p className="text-xs text-[#8896A8] px-4 py-2">외 {preview.length - 15}명 더 있음</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {orgPreview && (
+            <div className="mt-4 border border-[#DDE3EE] rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFD]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-mint-500" />
+                  <p className="text-sm font-medium text-[#192628]">{orgPreview.length}건 미리보기 (이메일 매칭)</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setOrgPreview(null); setFileName('') }}
+                    className="text-xs text-[#8896A8] hover:underline px-2 py-1"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={confirmUpload}
+                    className="text-xs text-white bg-mint-500 hover:bg-mint-600 px-3.5 py-1.5 rounded-lg font-medium transition-colors"
+                  >
+                    {orgPreview.length}건 반영 확정
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#F0F4FA]">
+                      {['이메일', '팀', '부문/실', '직무', '직책'].map((h) => (
+                        <th key={h} className="px-4 py-2.5 text-left font-semibold text-[#4A5568]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orgPreview.slice(0, 15).map((r, i) => (
+                      <tr key={i} className="border-t border-[#DDE3EE]">
+                        <td className="px-4 py-2.5 font-medium text-[#192628]">{r.email}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.team || '-'}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.division || '-'}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.jobDuty || '-'}</td>
+                        <td className="px-4 py-2.5 text-[#4A5568]">{r.role || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {orgPreview.length > 15 && (
+                  <p className="text-xs text-[#8896A8] px-4 py-2">외 {orgPreview.length - 15}건 더 있음</p>
                 )}
               </div>
             </div>
@@ -243,7 +358,7 @@ export default function HREmployeesPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-[#F0F4FA]">
-                  {['이름', '이메일', '팀', '직책', '역할', ''].map((h) => (
+                  {['이름', '이메일', '팀', '직무', '직책', ''].map((h) => (
                     <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-[#4A5568]">{h}</th>
                   ))}
                 </tr>
@@ -261,7 +376,7 @@ export default function HREmployeesPage() {
                     </td>
                     <td className="px-4 py-3 text-[#4A5568] text-xs">{emp.email}</td>
                     <td className="px-4 py-3 text-[#4A5568]">{emp.team?.name ?? '-'}</td>
-                    <td className="px-4 py-3 text-[#4A5568]">{emp.jobTitle ?? '-'}</td>
+                    <td className="px-4 py-3 text-[#4A5568]">{emp.jobDuty ?? '-'}</td>
                     <td className="px-4 py-3">
                       <select
                         value={emp.role}

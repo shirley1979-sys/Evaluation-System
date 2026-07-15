@@ -4,15 +4,15 @@ import { useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import Topbar from '@/components/layout/Topbar'
 import { useQuestionsStore } from '@/store/questions'
-import { useSelfEvalStore, calcSelfProgress, type SelfProject, type SelfEvalEntry } from '@/store/selfEval'
+import { useSelfEvalStore, calcSelfProgress, type SelfProject, type SelfEvalEntry, type EvidenceLink } from '@/store/selfEval'
 
 function newProject(): SelfProject {
-  return { id: crypto.randomUUID(), name: '', role: '', deliverable: '', goodPoints: '', improvements: '', requests: '' }
+  return { id: crypto.randomUUID(), name: '', role: '', deliverable: '', evidenceLinks: [] }
 }
 
 function emptyEntry(userId: string): SelfEvalEntry {
   return {
-    userId, projects: [newProject()], strengths: '', improvements: '',
+    userId, projects: [newProject()], strengths: '', improvements: '', requests: '',
     scores: {}, textAnswers: {}, status: 'DRAFT', updatedAt: null, submittedAt: null,
   }
 }
@@ -54,6 +54,22 @@ export default function SelfSurveyPage() {
   function removeProject(id: string) {
     if (form.projects.length <= 1) return
     update({ projects: form.projects.filter((p) => p.id !== id) })
+  }
+
+  function addLink(projectId: string, link: Omit<EvidenceLink, 'id'>) {
+    update({
+      projects: form.projects.map((p) =>
+        p.id === projectId ? { ...p, evidenceLinks: [...p.evidenceLinks, { id: crypto.randomUUID(), ...link }] } : p
+      ),
+    })
+  }
+
+  function removeLink(projectId: string, linkId: string) {
+    update({
+      projects: form.projects.map((p) =>
+        p.id === projectId ? { ...p, evidenceLinks: p.evidenceLinks.filter((l) => l.id !== linkId) } : p
+      ),
+    })
   }
 
   function setScore(qId: string, val: number) {
@@ -99,7 +115,7 @@ export default function SelfSurveyPage() {
             </div>
             <div className="grid grid-cols-4 gap-2 mt-3">
               {[
-                { label: '프로젝트', ok: form.projects.length > 0 && form.projects.every((p) => p.name && p.goodPoints) },
+                { label: '프로젝트', ok: form.projects.length > 0 && form.projects.every((p) => p.name && p.role) },
                 { label: '강점',    ok: form.strengths.length >= 10 },
                 { label: '개선점',  ok: form.improvements.length >= 10 },
                 { label: '척도',    ok: Object.keys(form.scores).length > 0 },
@@ -150,6 +166,8 @@ export default function SelfSurveyPage() {
                   canRemove={form.projects.length > 1}
                   onChange={(field, val) => updateProject(proj.id, field, val)}
                   onRemove={() => removeProject(proj.id)}
+                  onAddLink={(link) => addLink(proj.id, link)}
+                  onRemoveLink={(linkId) => removeLink(proj.id, linkId)}
                 />
               ))}
             </div>
@@ -162,9 +180,10 @@ export default function SelfSurveyPage() {
               <p className="text-xs text-[#8896A8]">올해 전체적인 업무 관점에서 작성하세요</p>
             </div>
             {[
-              { field: 'strengths'   as const, label: '잘한 점 / 강점', placeholder: '올해 가장 잘 수행한 업무나 발휘한 강점을 구체적으로 서술하세요 (10자 이상)' },
-              { field: 'improvements' as const, label: '개선할 점', placeholder: '더 잘하기 위해 개선이 필요한 부분을 솔직하게 서술하세요 (10자 이상)' },
-            ].map(({ field, label, placeholder }) => (
+              { field: 'strengths'   as const, label: '잘한 점 / 강점', placeholder: '올해 가장 잘 수행한 업무나 발휘한 강점을 구체적으로 서술하세요 (10자 이상)', required: true },
+              { field: 'improvements' as const, label: '개선할 점', placeholder: '더 잘하기 위해 개선이 필요한 부분을 솔직하게 서술하세요 (10자 이상)', required: true },
+              { field: 'requests'     as const, label: '회사에 요청할 것', placeholder: '업무 수행을 위해 회사 또는 조직에 필요한 지원이나 개선사항 (선택)', required: false },
+            ].map(({ field, label, placeholder, required }) => (
               <div key={field}>
                 <label className="block text-sm font-medium text-[#192628] mb-1.5">{label}</label>
                 <textarea
@@ -175,7 +194,7 @@ export default function SelfSurveyPage() {
                   placeholder={placeholder}
                   className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
                 />
-                {form[field].length > 0 && form[field].length < 10 && (
+                {required && form[field].length > 0 && form[field].length < 10 && (
                   <p className="text-xs text-amber-500 mt-1">최소 10자 이상 입력하세요 ({form[field].length}/10)</p>
                 )}
               </div>
@@ -190,12 +209,13 @@ export default function SelfSurveyPage() {
               <div className="space-y-5">
                 {scaleQuestions.map((q) => (
                   <div key={q.id}>
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-1">
                       <p className="text-sm font-medium text-[#192628] flex-1 pr-4">{q.text}</p>
                       {form.scores[q.id] && (
                         <span className="text-xs font-bold text-mint-600 flex-shrink-0">{form.scores[q.id]}점</span>
                       )}
                     </div>
+                    {q.description && <p className="text-xs text-[#8896A8] mb-2 leading-relaxed">{q.description}</p>}
                     <div className="flex gap-2">
                       {[1, 2, 3, 4, 5].map((v) => (
                         <button
@@ -277,8 +297,27 @@ export default function SelfSurveyPage() {
 }
 
 // ── 프로젝트 카드 컴포넌트 ────────────────────────
+function detectLinkSource(url: string): { name: string; color: string } {
+  const u = url.toLowerCase()
+  if (u.includes('atlassian.net') || u.includes('jira')) return { name: 'Jira', color: 'bg-blue-50 text-blue-600 border-blue-200' }
+  if (u.includes('notion.so') || u.includes('notion.site')) return { name: 'Notion', color: 'bg-gray-100 text-gray-600 border-gray-200' }
+  if (u.includes('zoom.us') || u.includes('youtube.com') || u.includes('youtu.be') || u.includes('festa.io') || u.includes('onoffmix.com')) return { name: '컨퍼런스', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+  if (u.includes('docs.google.com') || u.includes('drive.google.com')) return { name: 'Google', color: 'bg-amber-50 text-amber-600 border-amber-200' }
+  if (u.includes('figma.com')) return { name: 'Figma', color: 'bg-purple-50 text-purple-600 border-purple-200' }
+  return { name: '링크', color: 'bg-mint-50 text-mint-700 border-mint-200' }
+}
+
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function ProjectCard({
-  proj, index, disabled, canRemove, onChange, onRemove,
+  proj, index, disabled, canRemove, onChange, onRemove, onAddLink, onRemoveLink,
 }: {
   proj: SelfProject
   index: number
@@ -286,9 +325,24 @@ function ProjectCard({
   canRemove: boolean
   onChange: (field: keyof SelfProject, val: string) => void
   onRemove: () => void
+  onAddLink: (link: { label: string; url: string }) => void
+  onRemoveLink: (linkId: string) => void
 }) {
   const [open, setOpen] = useState(index === 0)
-  const filled = proj.name && proj.goodPoints && proj.improvements
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkError, setLinkError] = useState('')
+  const filled = proj.name && proj.role
+
+  function handleAddLink() {
+    if (!linkUrl.trim()) return
+    if (!isValidUrl(linkUrl.trim())) {
+      setLinkError('http:// 또는 https://로 시작하는 올바른 URL을 입력하세요')
+      return
+    }
+    onAddLink({ label: proj.name.trim() || `프로젝트 ${index + 1}`, url: linkUrl.trim() })
+    setLinkUrl('')
+    setLinkError('')
+  }
 
   return (
     <div className="border border-[#DDE3EE] rounded-xl overflow-hidden">
@@ -327,9 +381,6 @@ function ProjectCard({
             { field: 'name'         as const, label: '프로젝트명 *',      placeholder: '프로젝트 또는 업무명' },
             { field: 'role'         as const, label: '담당 역할 *',       placeholder: '이 프로젝트에서 본인의 역할' },
             { field: 'deliverable'  as const, label: '주요 산출물',        placeholder: '구체적인 산출물 또는 결과물' },
-            { field: 'goodPoints'   as const, label: '잘한 점 *',         placeholder: '이 프로젝트에서 잘 수행한 점을 구체적으로 작성하세요' },
-            { field: 'improvements' as const, label: '개선할 점 *',        placeholder: '돌이켜 보면 더 잘할 수 있었던 부분' },
-            { field: 'requests'     as const, label: '회사에 요청할 것',   placeholder: '업무 수행을 위해 회사 또는 조직에 필요한 지원이나 개선사항' },
           ].map(({ field, label, placeholder }) => (
             <div key={field}>
               <label className="block text-xs font-medium text-[#4A5568] mb-1">{label}</label>
@@ -337,12 +388,68 @@ function ProjectCard({
                 value={proj[field]}
                 onChange={(e) => onChange(field, e.target.value)}
                 disabled={disabled}
-                rows={field === 'goodPoints' || field === 'improvements' || field === 'requests' ? 2 : 1}
+                rows={1}
                 placeholder={placeholder}
                 className="w-full px-3 py-2 border border-[#DDE3EE] rounded-lg text-sm resize-none focus:outline-none focus:border-mint-400 disabled:bg-gray-50"
               />
             </div>
           ))}
+
+          {/* 업무 증빙 링크 */}
+          <div>
+            <label className="block text-xs font-medium text-[#4A5568] mb-1">업무 증빙 링크 (Jira, Notion, 컨퍼런스 등)</label>
+
+            {proj.evidenceLinks.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {proj.evidenceLinks.map((link) => {
+                  const source = detectLinkSource(link.url)
+                  return (
+                    <div key={link.id} className="flex items-center gap-2 px-3 py-2 border border-[#DDE3EE] rounded-lg bg-[#F8FAFD]">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${source.color}`}>
+                        {source.name}
+                      </span>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-mint-600 hover:underline truncate flex-1"
+                      >
+                        {proj.name.trim() || `프로젝트 ${index + 1}`}
+                      </a>
+                      {!disabled && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveLink(link.id)}
+                          className="text-xs text-[#8896A8] hover:text-red-500 flex-shrink-0"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {!disabled && (
+              <div className="flex gap-2">
+                <input
+                  value={linkUrl}
+                  onChange={(e) => { setLinkUrl(e.target.value); setLinkError('') }}
+                  placeholder="https://..."
+                  className="flex-1 px-2.5 py-1.5 border border-[#DDE3EE] rounded-lg text-xs focus:outline-none focus:border-mint-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddLink}
+                  className="text-xs font-semibold text-mint-600 border border-mint-200 bg-mint-50 px-3 py-1.5 rounded-lg hover:bg-mint-100 transition-colors flex-shrink-0"
+                >
+                  추가
+                </button>
+              </div>
+            )}
+            {linkError && <p className="text-xs text-red-500 mt-1">{linkError}</p>}
+          </div>
         </div>
       )}
     </div>

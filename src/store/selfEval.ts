@@ -1,21 +1,26 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export interface EvidenceLink {
+  id: string
+  label: string  // 예: "Jira EVX-123", "기획 문서"
+  url: string
+}
+
 export interface SelfProject {
   id: string
   name: string         // 프로젝트명
   role: string         // 담당 역할
   deliverable: string  // 주요 산출물
-  goodPoints: string   // 잘한 점
-  improvements: string // 개선할 점
-  requests: string     // 회사에 요청할 것
+  evidenceLinks: EvidenceLink[]  // Jira/Notion/컨퍼런스 등 업무 증빙 링크
 }
 
 export interface SelfEvalEntry {
   userId: string
   projects: SelfProject[]
-  strengths: string     // 전반적 강점
+  strengths: string     // 전반적 강점 (잘한 점)
   improvements: string  // 전반적 개선점
+  requests: string      // 회사에 요청할 것
   scores: Record<string, number>      // questionId → 1~5점
   textAnswers: Record<string, string> // questionId → 주관식 답변
   status: 'DRAFT' | 'SUBMITTED'
@@ -30,7 +35,7 @@ export function calcSelfProgress(entry: SelfEvalEntry, totalQuestions = 0): numb
 
   // 1) 프로젝트: 최소 1개, 필수 필드 모두 채움
   const projOk = entry.projects.length > 0 &&
-    entry.projects.every((p) => p.name.trim() && p.role.trim() && p.goodPoints.trim() && p.improvements.trim())
+    entry.projects.every((p) => p.name.trim() && p.role.trim())
   if (projOk) filled++
 
   // 2) 강점

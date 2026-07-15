@@ -61,7 +61,8 @@ export default function UpwardSurveyPage() {
           {questions.map((q) => (
             <div key={q.id} className="bg-white rounded-2xl shadow-card p-5">
               <p className="text-[10px] font-semibold text-[#8896A8] uppercase tracking-wider mb-1.5">{q.category}</p>
-              <p className="text-sm font-medium text-[#0D1B2A] mb-3">{q.text}</p>
+              <p className="text-sm font-medium text-[#0D1B2A] mb-1">{q.text}</p>
+              {q.description && <p className="text-xs text-[#8896A8] mb-3 leading-relaxed">{q.description}</p>}
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((v) => (
                   <button key={v} onClick={() => !isAlreadySubmitted && setScores((p) => ({ ...p, [q.id]: v }))}

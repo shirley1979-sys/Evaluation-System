@@ -21,6 +21,7 @@ export interface Team {
   id: string
   name: string
   managerId: string | null
+  division: string | null  // 부문 (예: 개발부문, 제품전략부문)
 }
 
 export interface User {

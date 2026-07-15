@@ -84,8 +84,8 @@ export default function Sidebar() {
 
   const roleLabel = role === 'SUPER_ADMIN' ? '슈퍼관리자' : role === 'HR_ADMIN' ? 'HR 관리자' : role === 'MANAGER' ? '팀장' : '직원'
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     router.push('/login')
   }
 

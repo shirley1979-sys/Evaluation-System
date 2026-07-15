@@ -27,3 +27,6 @@ prisma/*.db-journal
 # pnpm
 .pnp
 .pnp.js
+
+# claude code local config
+.claude/

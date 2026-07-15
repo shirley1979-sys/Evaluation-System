@@ -19,11 +19,23 @@ export interface UploadRow {
   hireDate?: string
   leaveDate?: string
   team: string
+  division?: string   // 부문 (예: 개발부문)
   jobTitle?: string   // 직책
   jobDuty?: string    // 직무
   email: string
   nameEng?: string
   role: string
+  managerEmail?: string
+}
+
+// 조직 정보만 업데이트할 때 쓰는 행 (이메일로 기존 인원 매칭, 나머지 필드는 선택)
+export interface OrgUpdateRow {
+  email: string
+  team?: string
+  division?: string
+  jobTitle?: string
+  jobDuty?: string
+  role?: string
   managerEmail?: string
 }
 
@@ -33,6 +45,7 @@ export function rowsToUsers(rows: UploadRow[]): { users: User[]; teams: Team[] }
     id: `team_${idx + 1}`,
     name,
     managerId: null,
+    division: rows.find((r) => r.team === name)?.division ?? null,
   }))
 
   const users: User[] = rows.map((row, idx) => {
@@ -71,6 +84,7 @@ interface EmployeeState {
   hasUploaded: boolean
 
   setFromUpload: (rows: UploadRow[]) => void
+  applyOrgUpdate: (rows: OrgUpdateRow[]) => { matched: number; unmatched: string[] }
   resetToMock: () => void
   removeEmployee: (id: string) => void
   updateRole: (id: string, role: Role) => void
@@ -86,6 +100,53 @@ export const useEmployeeStore = create<EmployeeState>()(
       setFromUpload: (rows) => {
         const { users, teams } = rowsToUsers(rows)
         set({ employees: users, teams, hasUploaded: true })
+      },
+
+      // 2차 업로드: 이메일로 기존 직원을 매칭해 팀/부문/직책/직무/역할만 갱신 (이름·닉네임·입사일 등은 유지)
+      applyOrgUpdate: (rows) => {
+        const byEmail = new Map(rows.map((r) => [r.email.trim().toLowerCase(), r]))
+        const unmatched: string[] = []
+        let matched = 0
+
+        set((state) => {
+          const teams = [...state.teams]
+          const findOrCreateTeam = (name: string, division?: string) => {
+            let team = teams.find((t) => t.name === name)
+            if (!team) {
+              team = { id: `team_${teams.length + 1}`, name, managerId: null, division: division ?? null }
+              teams.push(team)
+            } else if (division && !team.division) {
+              team.division = division
+            }
+            return team
+          }
+
+          const employees = state.employees.map((emp) => {
+            const update = byEmail.get(emp.email.trim().toLowerCase())
+            if (!update) return emp
+            matched++
+            const team = update.team ? findOrCreateTeam(update.team, update.division) : emp.team
+            return {
+              ...emp,
+              team,
+              teamId: team?.id ?? emp.teamId,
+              jobTitle: update.jobTitle ?? emp.jobTitle,
+              jobDuty: update.jobDuty ?? emp.jobDuty,
+              role: (ROLE_MAP[update.role ?? ''] ?? emp.role) as Role,
+              managerEmail: update.managerEmail ?? emp.managerEmail,
+            }
+          })
+
+          for (const r of rows) {
+            if (!state.employees.some((e) => e.email.trim().toLowerCase() === r.email.trim().toLowerCase())) {
+              unmatched.push(r.email)
+            }
+          }
+
+          return { employees, teams }
+        })
+
+        return { matched, unmatched }
       },
 
       resetToMock: () =>
