@@ -5,10 +5,13 @@ import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { useEmployeeStore, type UploadRow } from '@/store/employees'
 import { useQuestionsStore, TYPE_LABEL, TYPE_COLOR } from '@/store/questions'
-import { useEvalCycleStore, PHASE_ORDER, PHASE_LABEL, PHASE_NEXT_ACTION } from '@/store/cycle'
+import { useEvalCycleStore, PHASE_ORDER, PHASE_LABEL, PHASE_NEXT_ACTION, isSelfEvalClosed } from '@/store/cycle'
 import { MOCK_SURVEYS, MOCK_USERS, getSurveysForSurveyor } from '@/lib/mock'
 import { useNominationStore } from '@/store/nominations'
 import { useSelfEvalStore } from '@/store/selfEval'
+import { useManagerReviewStore } from '@/store/managerReview'
+import { usePmAssignmentStore } from '@/store/pmAssignment'
+import { reviewToGrade } from '@/components/review/MemberReviewPanel'
 import type { Role, Question, QuestionType, AuthUser } from '@/types'
 import * as XLSX from 'xlsx'
 
@@ -27,7 +30,7 @@ const ALL_ROLES: Role[] = ['MEMBER', 'MANAGER', 'EXECUTIVE', 'HR_ADMIN', 'SUPER_
 
 // ── 사이클 단계 ────────────────────────────────
 const CYCLE_PHASE_KO: Record<string, string> = {
-  SETUP: '준비', NOMINATION: '동료 추천', HR_CONFIRM: 'HR 확정',
+  SETUP: '준비', NOMINATION: '동료 추천', HR_CONFIRM: '부문장 검토',
   EVALUATION: '평가 실시', CLOSED: '마감', RESULTS_OPEN: '결과 공개',
 }
 
@@ -43,9 +46,12 @@ export default function DashboardPage() {
 // 관리자 대시보드
 // ════════════════════════════════════════════════
 function AdminDashboard({ user }: { user: AuthUser }) {
-  const [tab, setTab] = useState<'employees' | 'progress' | 'questions'>('employees')
-  const { phase, advancePhase, prevPhase } = useEvalCycleStore()
+  const [tab, setTab] = useState<'employees' | 'progress' | 'questions' | 'devEval'>('employees')
+  const { phase, advancePhase, prevPhase, selfEvalOpenAt, selfEvalCloseAt, setSelfEvalPeriod } = useEvalCycleStore()
   const currentStep = PHASE_ORDER.indexOf(phase)
+  const [openAtInput, setOpenAtInput] = useState(selfEvalOpenAt ?? '')
+  const [closeAtInput, setCloseAtInput] = useState(selfEvalCloseAt ?? '')
+  const selfEvalClosed = isSelfEvalClosed(selfEvalCloseAt)
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F0F4FA]">
@@ -108,6 +114,35 @@ function AdminDashboard({ user }: { user: AuthUser }) {
             </button>
           )}
         </div>
+
+        {/* 셀프평가 기간 설정 */}
+        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/10 flex-wrap">
+          <span className="text-xs text-white/40 mr-1">셀프평가 기간</span>
+          <input
+            type="date"
+            value={openAtInput}
+            onChange={(e) => setOpenAtInput(e.target.value)}
+            className="h-8 px-2 rounded-lg bg-white/8 border border-white/15 text-xs text-white/80 focus:outline-none focus:border-mint-400"
+          />
+          <span className="text-xs text-white/30">~</span>
+          <input
+            type="date"
+            value={closeAtInput}
+            onChange={(e) => setCloseAtInput(e.target.value)}
+            className="h-8 px-2 rounded-lg bg-white/8 border border-white/15 text-xs text-white/80 focus:outline-none focus:border-mint-400"
+          />
+          <button
+            onClick={() => setSelfEvalPeriod(openAtInput || null, closeAtInput || null)}
+            className="text-xs font-semibold text-[#0D1B2A] bg-mint-400 hover:bg-mint-300 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            저장
+          </button>
+          {selfEvalCloseAt && (
+            <span className={`text-[10px] px-2 py-1 rounded-full ${selfEvalClosed ? 'bg-red-500/15 text-red-300' : 'bg-mint-500/15 text-mint-300'}`}>
+              {selfEvalClosed ? '마감됨 — 수정 불가' : '진행 중'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 탭 네비게이션 */}
@@ -117,6 +152,7 @@ function AdminDashboard({ user }: { user: AuthUser }) {
             { key: 'employees', label: '직원 관리', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' },
             { key: 'progress',  label: '진행 현황', icon: 'M18 20V10M12 20V4M6 20v-6' },
             { key: 'questions', label: '평가 항목', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01' },
+            { key: 'devEval',   label: '개발자 PM/부문장 평가', icon: 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z' },
           ].map(({ key, label, icon }) => (
             <button
               key={key}
@@ -141,6 +177,7 @@ function AdminDashboard({ user }: { user: AuthUser }) {
         {tab === 'employees' && <EmployeeTab />}
         {tab === 'progress'  && <ProgressTab  phase={phase} />}
         {tab === 'questions' && <QuestionsTab />}
+        {tab === 'devEval'   && <DevEvalTab />}
       </div>
     </div>
   )
@@ -447,7 +484,8 @@ function ProgressTab({ phase }: { phase: string }) {
   const selfEntries = useSelfEvalStore((s) => s.entries)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
 
-  const activeEmps = employees.filter((u) => u.isActive && u.role !== 'SUPER_ADMIN' && u.role !== 'HR_ADMIN')
+  // 부문장/실장(EXECUTIVE)은 평가자로만 존재하므로 평가 대상 진행률 집계에서 제외
+  const activeEmps = employees.filter((u) => u.isActive && u.role !== 'SUPER_ADMIN' && u.role !== 'HR_ADMIN' && u.role !== 'EXECUTIVE')
   const total = activeEmps.length
 
   // 개인별 완료 계산
@@ -456,7 +494,7 @@ function ProgressTab({ phase }: { phase: string }) {
     const selfEntry = selfEntries.find((e) => e.userId === emp.id)
     const nomEntry  = nomEntries.find((e) => e.nominatorId === emp.id)
 
-    const nomDone      = nomEntry?.status === 'HR_CONFIRMED'
+    const nomDone      = nomEntry?.status === 'CONFIRMED'
     const selfDone     = selfEntry?.status === 'SUBMITTED' || surveys.find((s) => s.type === 'SELF')?.status === 'SUBMITTED'
     const peerSurveys  = surveys.filter((s) => s.type === 'PEER')
     const peerDone     = peerSurveys.length > 0 && peerSurveys.every((s) => s.status === 'SUBMITTED')
@@ -473,7 +511,7 @@ function ProgressTab({ phase }: { phase: string }) {
 
   // 전체 지표
   const stats = [
-    { label: '동료 추천 확정', done: matrix.filter((r) => r.nomDone).length,   color: 'bg-mint-500'   },
+    { label: '부문장 검토 완료', done: matrix.filter((r) => r.nomDone).length,   color: 'bg-mint-500'   },
     { label: '셀프 평가',     done: matrix.filter((r) => r.selfDone).length,  color: 'bg-blue-500'   },
     { label: '동료 평가',     done: matrix.filter((r) => r.peerDone).length,  color: 'bg-purple-500' },
     { label: '상향 평가',     done: matrix.filter((r) => r.upwardDone === true).length, color: 'bg-amber-500'  },
@@ -644,6 +682,93 @@ function StatusCell({ done, nullable = false }: { done: boolean | null; nullable
         : <svg className="inline text-red-300"   width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       }
     </td>
+  )
+}
+
+// ════════════════════════════════════════════════
+// 개발자 PM/부문장 합산 평가 탭
+// ════════════════════════════════════════════════
+const DEV_GRADE_COLOR: Record<string, string> = {
+  S: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  A: 'bg-mint-50 text-mint-700 border-mint-200',
+  B: 'bg-green-50 text-green-700 border-green-200',
+  C: 'bg-orange-50 text-orange-700 border-orange-200',
+  D: 'bg-red-50 text-red-700 border-red-200',
+  '-': 'bg-gray-50 text-gray-500 border-gray-200',
+}
+
+function DevEvalTab() {
+  const employees = useEmployeeStore((s) => s.employees)
+  const assignments = usePmAssignmentStore((s) => s.assignments)
+  const { getReview } = useManagerReviewStore()
+
+  const developerIds = [...new Set(assignments.map((a) => a.developerId))]
+
+  if (developerIds.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-card p-10 text-center max-w-4xl">
+        <p className="text-sm text-[#8896A8]">아직 PM이 지정된 개발자가 없습니다. 부문장이 팀원 리포트 &gt; PM 지정에서 개발자별 PM을 지정할 수 있습니다.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 max-w-5xl">
+      <p className="text-xs text-[#8896A8]">
+        개발자별로 담당 PM과 개발부문장(지정자)이 각각 작성한 등급·총평을 나란히 확인합니다. 등급은 업무성과·역량발휘·협업태도 3개 척도 평균을 기준으로 산출됩니다.
+      </p>
+      {developerIds.map((devId) => {
+        const dev = employees.find((e) => e.id === devId)
+        if (!dev) return null
+        const devAssignments = assignments.filter((a) => a.developerId === devId)
+        return (
+          <div key={devId} className="bg-white rounded-2xl shadow-card p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mint-500 to-mint-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {dev.name.slice(0, 2)}
+              </div>
+              <div>
+                <p className="font-semibold text-[#0D1B2A] text-sm">{dev.name}</p>
+                <p className="text-xs text-[#8896A8]">{dev.jobDuty ?? dev.jobTitle} · {dev.team?.name}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {devAssignments.map((a) => {
+                const pm = employees.find((e) => e.id === a.pmId)
+                const divHead = employees.find((e) => e.id === a.assignedBy)
+                const pmReview = getReview(a.pmId, devId)
+                const headReview = getReview(a.assignedBy, devId)
+                return (
+                  <div key={a.id} className="border border-[#DDE3EE] rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-[#8896A8] uppercase tracking-wide">{a.projectName}</p>
+                    {[
+                      { label: `PM 평가 (${pm?.name ?? '미지정'})`, review: pmReview },
+                      { label: `부문장 평가 (${divHead?.name ?? '미지정'})`, review: headReview },
+                    ].map(({ label, review }) => {
+                      const grade = reviewToGrade(review)
+                      return (
+                        <div key={label} className="bg-[#F8FAFD] rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-xs font-medium text-[#4A5568]">{label}</p>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${DEV_GRADE_COLOR[grade] ?? DEV_GRADE_COLOR['-']}`}>
+                              {review?.submitted ? `등급 ${grade}` : '미작성'}
+                            </span>
+                          </div>
+                          {review?.overall && (
+                            <p className="text-xs text-[#4A5568] leading-relaxed">{review.overall}</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

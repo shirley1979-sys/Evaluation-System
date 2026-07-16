@@ -124,10 +124,11 @@ function LoginForm() {
         </div>
 
         <p className="text-[11px] font-semibold text-[#8896A8] mt-4 mb-2.5">워크플로우 테스트 계정</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {([
             { email: 'membertest@everex.co.kr', label: '직원TEST', hint: 'TEST팀 · 팀원' },
             { email: 'leadtest@everex.co.kr',   label: '팀장TEST', hint: 'TEST팀 · 팀장' },
+            { email: 'divheadtest@everex.co.kr', label: '부문장TEST', hint: '전사 · 부문장' },
           ]).map(({ email, label, hint }) => (
             <button
               key={email}

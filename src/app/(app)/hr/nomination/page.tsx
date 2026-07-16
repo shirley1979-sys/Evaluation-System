@@ -14,23 +14,26 @@ const GROUP_COLOR: Record<NominationGroup, string> = {
   COLLAB:   'bg-purple-50 border-purple-200 text-purple-700',
 }
 
+const ROLE_LABEL: Record<string, string> = { EXECUTIVE: '부문장', SUPER_ADMIN: '관리자', HR_ADMIN: 'HR 관리자' }
+
 export default function HRNominationPage() {
   const user = useAuthStore((s) => s.user)
-  const { entries, hrConfirmEntry, hrConfirmAll, hrModifyEntry } = useNominationStore()
+  const { entries, confirmEntry, confirmAll, reviewerModifyEntry } = useNominationStore()
   const allEmployees = useEmployeeStore((s) => s.employees)
   const { phase, year } = useEvalCycleStore()
 
   const [editTarget, setEditTarget] = useState<NomEntry | null>(null)
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'SUBMITTED' | 'HR_CONFIRMED'>('ALL')
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'SUBMITTED' | 'CONFIRMED'>('ALL')
 
   if (!user) return null
+  const reviewerLabel = ROLE_LABEL[user.role] ?? '검토자'
 
   const visibleEntries = filterStatus === 'ALL'
     ? entries
     : entries.filter((e) => e.status === filterStatus)
 
   const submittedCount  = entries.filter((e) => e.status === 'SUBMITTED').length
-  const confirmedCount  = entries.filter((e) => e.status === 'HR_CONFIRMED').length
+  const confirmedCount  = entries.filter((e) => e.status === 'CONFIRMED').length
   const total           = entries.length
 
   function getEmployee(id: string) {
@@ -38,9 +41,9 @@ export default function HRNominationPage() {
   }
 
   function handleBulkConfirm() {
-    if (submittedCount === 0) return
+    if (submittedCount === 0 || !user) return
     if (window.confirm(`미확정 ${submittedCount}건을 모두 확정하시겠습니까?`)) {
-      hrConfirmAll()
+      confirmAll(user.id)
     }
   }
 
@@ -48,7 +51,7 @@ export default function HRNominationPage() {
     <>
       <Topbar
         title="동료 확정"
-        subtitle={`${year}년 다면평가 · ${PHASE_LABEL[phase]} · ${confirmedCount}/${total}명 확정`}
+        subtitle={`${year}년 다면평가 · ${PHASE_LABEL[phase]} · ${reviewerLabel} 검토 · ${confirmedCount}/${total}명 확정`}
       />
       <div className="flex-1 overflow-y-auto p-7 space-y-5 max-w-4xl">
 
@@ -69,7 +72,7 @@ export default function HRNominationPage() {
         {/* 필터 + 일괄 확정 */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-2">
-            {(['ALL', 'SUBMITTED', 'HR_CONFIRMED'] as const).map((s) => (
+            {(['ALL', 'SUBMITTED', 'CONFIRMED'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
@@ -104,7 +107,7 @@ export default function HRNominationPage() {
           <div className="space-y-3">
             {visibleEntries.map((entry) => {
               const nominator = getEmployee(entry.nominatorId)
-              const isConfirmed = entry.status === 'HR_CONFIRMED'
+              const isConfirmed = entry.status === 'CONFIRMED'
               return (
                 <div key={entry.nominatorId} className="bg-white rounded-2xl shadow-card p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -115,8 +118,8 @@ export default function HRNominationPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-[#0D1B2A] text-sm">{nominator?.name}</p>
-                          {entry.hrModified && (
-                            <span className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">HR 수정됨</span>
+                          {entry.reviewerModified && (
+                            <span className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">검토자 수정됨</span>
                           )}
                         </div>
                         <p className="text-xs text-[#8896A8]">{nominator?.team?.name} · {nominator?.jobTitle}</p>
@@ -137,7 +140,7 @@ export default function HRNominationPage() {
                         </span>
                       ) : (
                         <button
-                          onClick={() => hrConfirmEntry(entry.nominatorId)}
+                          onClick={() => user && confirmEntry(entry.nominatorId, user.id)}
                           className="text-xs font-semibold text-white bg-mint-500 px-3 py-1.5 rounded-lg hover:bg-mint-600 transition-colors"
                         >
                           확정
@@ -148,19 +151,27 @@ export default function HRNominationPage() {
 
                   {/* 피추천인 목록 */}
                   <div className="flex flex-wrap gap-2">
-                    {entry.nominees.map(({ userId, group }) => {
+                    {entry.nominees.map(({ userId, group, approval, declineReason }) => {
                       const nominee = getEmployee(userId)
+                      const declined = approval === 'DECLINED'
+                      const approved = approval === 'APPROVED'
                       return (
                         <span
                           key={userId}
+                          title={declined ? `거절 사유: ${declineReason || '(사유 없음)'}` : undefined}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            isConfirmed
-                              ? 'bg-green-50 border-green-200 text-green-700'
-                              : GROUP_COLOR[group]
+                            declined
+                              ? 'bg-red-50 border-red-200 text-red-700'
+                              : isConfirmed
+                                ? 'bg-green-50 border-green-200 text-green-700'
+                                : GROUP_COLOR[group]
                           }`}
                         >
                           {nominee?.name ?? userId}
                           <span className="opacity-60">{GROUP_LABEL[group]}</span>
+                          {(!isConfirmed || declined || approved) && (
+                            <span className="opacity-70">· {declined ? '거절' : approved ? '승인' : '대기'}</span>
+                          )}
                         </span>
                       )
                     })}
@@ -168,6 +179,21 @@ export default function HRNominationPage() {
                       <span className="text-xs text-[#8896A8]">추천 없음</span>
                     )}
                   </div>
+
+                  {/* 거절 인원 재배치 안내 */}
+                  {entry.nominees.some((n) => n.approval === 'DECLINED') && (
+                    <div className="flex items-center justify-between mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      <p className="text-xs text-red-700">
+                        {entry.nominees.filter((n) => n.approval === 'DECLINED').map((n) => getEmployee(n.userId)?.name).join(', ')}님이 거절했습니다. 명단 수정에서 다른 동료로 교체해주세요.
+                      </p>
+                      <button
+                        onClick={() => setEditTarget(entry)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 underline flex-shrink-0 ml-3"
+                      >
+                        재배치하기
+                      </button>
+                    </div>
+                  )}
 
                   {/* 확정일 */}
                   {isConfirmed && entry.confirmedAt && (
@@ -188,7 +214,7 @@ export default function HRNominationPage() {
           allEmployees={allEmployees}
           onClose={() => setEditTarget(null)}
           onSave={(nominees) => {
-            hrModifyEntry(editTarget.nominatorId, nominees)
+            reviewerModifyEntry(editTarget.nominatorId, nominees)
             setEditTarget(null)
           }}
         />
@@ -220,6 +246,7 @@ function EditModal({
     allEmployees.filter((e) =>
       e.id !== entry.nominatorId &&
       e.isActive &&
+      e.role !== 'EXECUTIVE' &&
       !nominees.some((n) => n.userId === e.id) &&
       (e.name.includes(search) || (e.team?.name ?? '').includes(search) || (e.jobTitle ?? '').includes(search))
     ),
@@ -265,16 +292,19 @@ function EditModal({
               <p className="text-xs text-[#8896A8] py-4 text-center">선택된 동료가 없습니다</p>
             ) : (
               <div className="space-y-2">
-                {nominees.map(({ userId, group }) => {
+                {nominees.map(({ userId, group, approval, declineReason }) => {
                   const emp = allEmployees.find((e) => e.id === userId)
+                  const declined = approval === 'DECLINED'
                   return (
-                    <div key={userId} className="flex items-center gap-2 p-2 rounded-xl bg-[#F8FAFD]">
+                    <div key={userId} className={`flex items-center gap-2 p-2 rounded-xl ${declined ? 'bg-red-50' : 'bg-[#F8FAFD]'}`}>
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-mint-500 to-mint-700 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                         {emp?.name.slice(0, 2) ?? '??'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-[#0D1B2A] truncate">{emp?.name}</p>
-                        <p className="text-[10px] text-[#8896A8] truncate">{emp?.team?.name}</p>
+                        <p className={`text-[10px] truncate ${declined ? 'text-red-600' : 'text-[#8896A8]'}`}>
+                          {declined ? `거절함${declineReason ? ` — ${declineReason}` : ''}` : emp?.team?.name}
+                        </p>
                       </div>
                       <select
                         value={group}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store'
 import { useAuthStore } from '@/store/auth'
+import { usePmAssignmentStore } from '@/store/pmAssignment'
 
 // ── 내비게이션 메뉴 정의 ──────────────────────
 const MEMBER_MENU = [
@@ -29,6 +30,10 @@ const MEMBER_MENU = [
 
 const MANAGER_EXTRA = [
   { label: '팀원 리포트', href: '/report/team', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87' },
+]
+
+const EXECUTIVE_EXTRA = [
+  { label: '동료 확정',  href: '/hr/nomination',  icon: 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z' },
 ]
 
 const HR_MENU = [
@@ -76,13 +81,15 @@ export default function Sidebar() {
   const router = useRouter()
   const { sidebarOpen, setSidebarOpen } = useAppStore()
   const { user, logout } = useAuthStore()
+  const pmAssignments = usePmAssignmentStore((s) => s.assignments)
+  const isPm = !!user && pmAssignments.some((a) => a.pmId === user.id)
 
   const role = user?.role
   const isHR = role === 'HR_ADMIN' || role === 'SUPER_ADMIN'
-  const isManager = role === 'MANAGER' || isHR
+  const isManager = role === 'MANAGER' || role === 'EXECUTIVE' || isHR
   const initials = user?.name?.slice(0, 2) ?? 'EX'
 
-  const roleLabel = role === 'SUPER_ADMIN' ? '슈퍼관리자' : role === 'HR_ADMIN' ? 'HR 관리자' : role === 'MANAGER' ? '팀장' : '직원'
+  const roleLabel = role === 'SUPER_ADMIN' ? '슈퍼관리자' : role === 'HR_ADMIN' ? 'HR 관리자' : role === 'EXECUTIVE' ? '부문장' : role === 'MANAGER' ? '팀장' : '직원'
 
   async function handleLogout() {
     await logout()
@@ -126,6 +133,14 @@ export default function Sidebar() {
             <div>
               <div className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold tracking-widest text-white/30 uppercase">팀 관리</div>
               {MANAGER_EXTRA.map((item) => <SidebarItem key={item.href} {...item} />)}
+              {role === 'EXECUTIVE' && EXECUTIVE_EXTRA.map((item) => <SidebarItem key={item.href} {...item} />)}
+            </div>
+          )}
+
+          {isPm && (
+            <div>
+              <div className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold tracking-widest text-white/30 uppercase">PM</div>
+              <SidebarItem label="담당 개발자 평가" href="/pm/evaluate" icon="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
             </div>
           )}
 

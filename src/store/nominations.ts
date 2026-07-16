@@ -9,13 +9,16 @@ export interface NomineeItem {
   userId: string
   group: NominationGroup
   approval: NomineeApproval
+  declineReason?: string
 }
 
+// 프로세스: 제출(SUBMITTED) → 부문장/관리자 검토·확정(CONFIRMED) → 동료 승인/거절(각 nominee.approval)
 export interface NomEntry {
   nominatorId: string
   nominees: NomineeItem[]
-  status: 'NONE' | 'SUBMITTED' | 'HR_CONFIRMED'
-  hrModified: boolean
+  status: 'NONE' | 'SUBMITTED' | 'CONFIRMED'
+  reviewedBy: string | null   // 검토(확정)한 부문장/관리자 id
+  reviewerModified: boolean
   confirmedAt: string | null
 }
 
@@ -33,8 +36,9 @@ function buildInitialEntries(): NomEntry[] {
     return {
       nominatorId: nId,
       nominees: noms.map((n) => ({ userId: n.nomineeId, group: n.groupType, approval: 'APPROVED' as const })),
-      status: allConfirmed ? 'HR_CONFIRMED' : 'SUBMITTED',
-      hrModified: false,
+      status: allConfirmed ? 'CONFIRMED' : 'SUBMITTED',
+      reviewedBy: allConfirmed ? 'hr' : null,
+      reviewerModified: false,
       confirmedAt: allConfirmed ? new Date().toISOString() : null,
     }
   })
@@ -43,11 +47,11 @@ function buildInitialEntries(): NomEntry[] {
 interface NominationState {
   entries: NomEntry[]
   submitEntry: (nominatorId: string, nominees: { userId: string; group: NominationGroup }[]) => void
-  hrModifyEntry: (nominatorId: string, nominees: { userId: string; group: NominationGroup }[]) => void
-  hrConfirmEntry: (nominatorId: string) => void
-  hrConfirmAll: () => void
+  reviewerModifyEntry: (nominatorId: string, nominees: { userId: string; group: NominationGroup }[]) => void
+  confirmEntry: (nominatorId: string, reviewerId: string) => void
+  confirmAll: (reviewerId: string) => void
   getEntry: (nominatorId: string) => NomEntry | undefined
-  respondToNomination: (nominatorId: string, nomineeUserId: string, approval: 'APPROVED' | 'DECLINED') => void
+  respondToNomination: (nominatorId: string, nomineeUserId: string, approval: 'APPROVED' | 'DECLINED', declineReason?: string) => void
   getPendingApprovalsFor: (userId: string) => (PendingApproval & { nominatorId: string })[]
   resetToMock: () => void
 }
@@ -65,7 +69,7 @@ export const useNominationStore = create<NominationState>()(
             return {
               entries: state.entries.map((e) =>
                 e.nominatorId === nominatorId
-                  ? { ...e, nominees: withApproval, status: 'SUBMITTED', hrModified: false, confirmedAt: null }
+                  ? { ...e, nominees: withApproval, status: 'SUBMITTED', reviewedBy: null, reviewerModified: false, confirmedAt: null }
                   : e
               ),
             }
@@ -73,59 +77,65 @@ export const useNominationStore = create<NominationState>()(
           return {
             entries: [
               ...state.entries,
-              { nominatorId, nominees: withApproval, status: 'SUBMITTED', hrModified: false, confirmedAt: null },
+              { nominatorId, nominees: withApproval, status: 'SUBMITTED', reviewedBy: null, reviewerModified: false, confirmedAt: null },
             ],
           }
         }),
 
-      hrModifyEntry: (nominatorId, nominees) =>
+      // 부문장/관리자가 명단을 검토하며 수정 (확정 전 단계로 되돌림)
+      reviewerModifyEntry: (nominatorId, nominees) =>
         set((state) => ({
           entries: state.entries.map((e) =>
             e.nominatorId === nominatorId
-              ? { ...e, nominees: nominees.map((n) => ({ ...n, approval: 'PENDING' as const })), hrModified: true, status: 'SUBMITTED', confirmedAt: null }
+              ? { ...e, nominees: nominees.map((n) => ({ ...n, approval: 'PENDING' as const })), reviewerModified: true, status: 'SUBMITTED', reviewedBy: null, confirmedAt: null }
               : e
           ),
         })),
 
-      hrConfirmEntry: (nominatorId) =>
+      // 부문장 또는 관리자가 명단을 확정 → 이 시점부터 동료 승인/거절 요청이 열림
+      confirmEntry: (nominatorId, reviewerId) =>
         set((state) => ({
           entries: state.entries.map((e) =>
             e.nominatorId === nominatorId
-              ? { ...e, status: 'HR_CONFIRMED', confirmedAt: new Date().toISOString() }
+              ? { ...e, status: 'CONFIRMED', reviewedBy: reviewerId, confirmedAt: new Date().toISOString() }
               : e
           ),
         })),
 
-      hrConfirmAll: () =>
+      confirmAll: (reviewerId) =>
         set((state) => ({
           entries: state.entries.map((e) =>
             e.status === 'SUBMITTED'
-              ? { ...e, status: 'HR_CONFIRMED', confirmedAt: new Date().toISOString() }
+              ? { ...e, status: 'CONFIRMED', reviewedBy: reviewerId, confirmedAt: new Date().toISOString() }
               : e
           ),
         })),
 
       getEntry: (nominatorId) => get().entries.find((e) => e.nominatorId === nominatorId),
 
-      // 지정된 당사자(동료)가 본인에 대한 지정을 승인/거절
-      respondToNomination: (nominatorId, nomineeUserId, approval) =>
+      // 지정된 당사자(동료)가 본인에 대한 지정을 승인/거절 (거절 시 사유 기재 가능)
+      // 부문장/관리자 확정(CONFIRMED) 이후에만 응답 가능
+      respondToNomination: (nominatorId, nomineeUserId, approval, declineReason) =>
         set((state) => ({
           entries: state.entries.map((e) =>
-            e.nominatorId === nominatorId
+            e.nominatorId === nominatorId && e.status === 'CONFIRMED'
               ? {
                   ...e,
                   nominees: e.nominees.map((n) =>
-                    n.userId === nomineeUserId ? { ...n, approval } : n
+                    n.userId === nomineeUserId
+                      ? { ...n, approval, declineReason: approval === 'DECLINED' ? declineReason : undefined }
+                      : n
                   ),
                 }
               : e
           ),
         })),
 
-      // 특정 사용자가 응답해야 할(PENDING 상태인) 지정 요청 목록
+      // 특정 사용자가 응답해야 할(PENDING 상태이면서 부문장/관리자 확정이 끝난) 지정 요청 목록
       getPendingApprovalsFor: (userId) => {
         const result: (PendingApproval & { nominatorId: string })[] = []
         for (const entry of get().entries) {
+          if (entry.status !== 'CONFIRMED') continue
           for (const n of entry.nominees) {
             if (n.userId === userId && n.approval === 'PENDING') {
               result.push({ nominatorId: entry.nominatorId, group: n.group })

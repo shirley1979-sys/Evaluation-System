@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useAuthStore } from '@/store/auth'
+import { useNominationStore } from '@/store/nominations'
+import { useEmployeeStore } from '@/store/employees'
 import Topbar from '@/components/layout/Topbar'
 import { MOCK_QUESTIONS, getSurveysForSurveyor } from '@/lib/mock'
 import { useSurveyDraftStore } from '@/store'
@@ -10,12 +12,32 @@ import type { Survey } from '@/types'
 export default function PeerSurveyPage() {
   const user = useAuthStore((s) => s.user)
   const { setDraft, getDraft, clearDraft } = useSurveyDraftStore()
+  const allNomEntries = useNominationStore((s) => s.entries)
+  const allEmployees = useEmployeeStore((s) => s.employees)
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
 
   if (!user) return null
 
-  const surveys = getSurveysForSurveyor(user.id).filter((s) => s.type !== 'UPWARD')
+  const staticSurveys = getSurveysForSurveyor(user.id).filter((s) => s.type !== 'UPWARD')
+
+  // 내가 동료로 지정되어(승인 완료) 평가해야 할 대상 = 확정된 추천에서 내가 승인한 nominee인 항목의 nominatorId
+  const targetIdsToEvaluate = allNomEntries
+    .filter((e) => e.status === 'CONFIRMED')
+    .filter((e) => e.nominees.some((n) => n.userId === user.id && n.approval === 'APPROVED'))
+    .map((e) => e.nominatorId)
+  const derivedSurveys: Survey[] = targetIdsToEvaluate
+    .filter((id) => !staticSurveys.some((s) => s.targetId === id))
+    .map((id) => {
+      const target = allEmployees.find((e) => e.id === id)
+      return {
+        id: `nom-${user.id}-${id}`, cycleId: 'cycle2026', surveyorId: user.id, targetId: id, type: 'PEER',
+        status: 'DRAFT', submittedAt: null, comment: '', answers: [],
+        target, surveyor: allEmployees.find((e) => e.id === user.id),
+      } as Survey
+    })
+
+  const surveys = [...staticSurveys, ...derivedSurveys]
   const peerQuestions = MOCK_QUESTIONS.filter((q) => q.type === 'COMMON' || q.type === 'PEER')
 
   const activeSurveyId = activeTargetId ?? surveys[0]?.id
@@ -100,6 +122,8 @@ function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, ini
   const [saved, setSaved] = useState(false)
 
   const allAnswered = questions.every((q) => scores[q.id] !== undefined)
+  const commentFilled = comment.trim().length > 0
+  const canSubmit = allAnswered && commentFilled
 
   function handleSave() {
     onSave(scores, comment)
@@ -160,20 +184,23 @@ function SurveyForm({ survey, questions, initiallySubmitted, initialAnswers, ini
         ))}
 
         <div className="bg-white rounded-2xl shadow-card p-5">
-          <label className="block text-sm font-medium text-[#0D1B2A] mb-2">코멘트 <span className="text-[#8896A8] font-normal">(선택 · 익명)</span></label>
+          <label className="block text-sm font-medium text-[#0D1B2A] mb-2">코멘트 <span className="text-red-500 font-normal">(필수 · 익명)</span></label>
           <textarea value={comment} onChange={(e) => setComment(e.target.value)} disabled={submitted} rows={3}
-            placeholder="자유롭게 피드백을 남겨주세요. 익명으로 전달됩니다."
+            placeholder="자유롭게 피드백을 남겨주세요. 익명으로 전달됩니다. (필수 입력)"
             className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
           />
+          {!submitted && !commentFilled && (
+            <p className="text-xs text-red-500 mt-1.5">동료 평가는 서술형 코멘트 작성이 필수입니다.</p>
+          )}
         </div>
       </div>
 
       {!submitted && (
         <div className="flex gap-3 mt-5">
           <button onClick={handleSave} className="flex-1 h-11 border border-[#DDE3EE] text-sm font-medium text-[#4A5568] rounded-xl hover:bg-gray-50 transition-colors">임시 저장</button>
-          <button onClick={handleSubmit} disabled={!allAnswered}
+          <button onClick={handleSubmit} disabled={!canSubmit}
             className="flex-1 h-11 bg-mint-500 text-white font-semibold text-sm rounded-xl disabled:opacity-40 hover:bg-mint-600 transition-colors">
-            최종 제출
+            {!allAnswered ? '모든 문항에 응답하세요' : !commentFilled ? '코멘트를 입력하세요' : '최종 제출'}
           </button>
         </div>
       )}
