@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth'
 import Topbar from '@/components/layout/Topbar'
 import { useQuestionsStore } from '@/store/questions'
 import { useSelfEvalStore, calcSelfProgress, type SelfProject, type SelfEvalEntry, type EvidenceLink } from '@/store/selfEval'
+import { useEvalCycleStore, isSelfEvalClosed } from '@/store/cycle'
 
 function newProject(): SelfProject {
   return { id: crypto.randomUUID(), name: '', role: '', deliverable: '', evidenceLinks: [] }
@@ -26,6 +27,7 @@ export default function SelfSurveyPage() {
   const textQuestions  = questions.filter((q) => q.type === 'TEXT')
 
   const { getEntry, saveEntry, submitEntry } = useSelfEvalStore()
+  const selfEvalCloseAt = useEvalCycleStore((s) => s.selfEvalCloseAt)
 
   const [form, setForm] = useState<SelfEvalEntry>(() => {
     if (!user) return emptyEntry('')
@@ -36,6 +38,8 @@ export default function SelfSurveyPage() {
   if (!user) return null
 
   const isSubmitted = form.status === 'SUBMITTED'
+  const isClosed    = isSelfEvalClosed(selfEvalCloseAt)
+  const isLocked    = isSubmitted || isClosed
   const progress    = calcSelfProgress(form, scaleQuestions.length)
 
   // ── 업데이트 헬퍼
@@ -87,6 +91,7 @@ export default function SelfSurveyPage() {
   }
 
   function handleSubmit() {
+    if (isClosed) { alert('셀프평가 기간이 마감되어 제출할 수 없습니다.'); return }
     if (progress < 50) { alert('최소 50% 이상 작성 후 제출할 수 있습니다.'); return }
     if (!window.confirm('최종 제출하시겠습니까? 제출 후에는 수정이 불가합니다.')) return
     const final = { ...form, status: 'SUBMITTED' as const }
@@ -97,7 +102,7 @@ export default function SelfSurveyPage() {
 
   return (
     <>
-      <Topbar title="셀프 평가" subtitle={isSubmitted ? '제출 완료' : `작성 중 ${progress}%`} />
+      <Topbar title="셀프 평가" subtitle={isSubmitted ? '제출 완료' : isClosed ? '마감됨' : `작성 중 ${progress}%`} />
       <div className="flex-1 overflow-y-auto p-7">
         <div className="max-w-2xl space-y-5">
 
@@ -140,6 +145,16 @@ export default function SelfSurveyPage() {
             </div>
           )}
 
+          {/* 기간 마감 배너 (미제출 상태로 마감된 경우) */}
+          {!isSubmitted && isClosed && (
+            <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="flex-shrink-0">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              셀프평가 기간이 마감되어 더 이상 작성·수정할 수 없습니다.
+            </div>
+          )}
+
           {/* ── 섹션 1: 프로젝트별 자기평가 ── */}
           <div className="bg-white rounded-2xl shadow-card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -147,7 +162,7 @@ export default function SelfSurveyPage() {
                 <h3 className="font-semibold text-[#192628]">프로젝트별 자기평가</h3>
                 <p className="text-xs text-[#8896A8] mt-0.5">참여한 프로젝트별로 작성하세요 (최소 1개)</p>
               </div>
-              {!isSubmitted && (
+              {!isLocked && (
                 <button
                   onClick={addProject}
                   className="text-xs font-semibold text-mint-600 border border-mint-200 bg-mint-50 px-3 py-1.5 rounded-lg hover:bg-mint-100 transition-colors"
@@ -162,7 +177,7 @@ export default function SelfSurveyPage() {
                   key={proj.id}
                   proj={proj}
                   index={idx}
-                  disabled={isSubmitted}
+                  disabled={isLocked}
                   canRemove={form.projects.length > 1}
                   onChange={(field, val) => updateProject(proj.id, field, val)}
                   onRemove={() => removeProject(proj.id)}
@@ -189,7 +204,7 @@ export default function SelfSurveyPage() {
                 <textarea
                   value={form[field]}
                   onChange={(e) => update({ [field]: e.target.value })}
-                  disabled={isSubmitted}
+                  disabled={isLocked}
                   rows={3}
                   placeholder={placeholder}
                   className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
@@ -221,8 +236,8 @@ export default function SelfSurveyPage() {
                         <button
                           key={v}
                           type="button"
-                          onClick={() => !isSubmitted && setScore(q.id, v)}
-                          disabled={isSubmitted}
+                          onClick={() => !isLocked && setScore(q.id, v)}
+                          disabled={isLocked}
                           className={`flex-1 h-10 rounded-lg border text-sm font-semibold transition-all ${
                             form.scores[q.id] === v
                               ? 'bg-mint-500 border-mint-500 text-white'
@@ -259,7 +274,7 @@ export default function SelfSurveyPage() {
                   <textarea
                     value={form.textAnswers[q.id] ?? ''}
                     onChange={(e) => setTextAnswer(q.id, e.target.value)}
-                    disabled={isSubmitted}
+                    disabled={isLocked}
                     rows={3}
                     placeholder="자유롭게 작성하세요"
                     className="w-full px-4 py-3 border border-[#DDE3EE] rounded-xl text-sm resize-none focus:outline-none focus:border-mint-400 focus:ring-2 focus:ring-mint-100 disabled:bg-gray-50"
@@ -270,7 +285,7 @@ export default function SelfSurveyPage() {
           )}
 
           {/* 버튼 영역 */}
-          {!isSubmitted && (
+          {!isLocked && (
             <div className="flex gap-3">
               <button
                 onClick={handleSave}
